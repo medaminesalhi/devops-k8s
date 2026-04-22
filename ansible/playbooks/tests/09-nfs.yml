@@ -1,0 +1,6 @@
+---
+- name: Test NFS role
+  hosts: all
+  become: true
+  roles:
+    - nfs

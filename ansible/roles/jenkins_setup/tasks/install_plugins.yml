@@ -1,0 +1,25 @@
+- name: Copier la liste des plugins Jenkins
+  copy:
+    src: plugins.txt
+    dest: "{{ jenkins_plugins_file }}"
+    owner: "{{ jenkins_user }}"
+    group: "{{ jenkins_group }}"
+    mode: "0644"
+
+- name: Vérifier si jenkins-plugin-cli existe
+  command: which jenkins-plugin-cli
+  register: jenkins_plugin_cli_check
+  changed_when: false
+  failed_when: false
+
+- name: Installer les plugins Jenkins avec jenkins-plugin-cli
+  command: >
+    jenkins-plugin-cli --plugin-file {{ jenkins_plugins_file }}
+  when: jenkins_plugin_cli_check.rc == 0
+  register: jenkins_plugins_install
+
+- name: Redémarrer Jenkins après installation des plugins
+  systemd:
+    name: jenkins
+    state: restarted
+  when: jenkins_plugin_cli_check.rc == 0

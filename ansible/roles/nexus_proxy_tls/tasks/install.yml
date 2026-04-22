@@ -1,0 +1,13 @@
+- name: Installer nginx et openssl
+  apt:
+    name:
+      - nginx
+      - openssl
+    state: present
+    update_cache: yes
+
+- name: Creer le dossier des certificats
+  file:
+    path: "{{ nexus_tls_dir }}"
+    state: directory
+    mode: "0755"

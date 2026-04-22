@@ -1,0 +1,36 @@
+- name: Vérifier que Docker est installé
+  command: docker --version
+  changed_when: false
+
+- name: Créer le dossier de données Nexus
+  file:
+    path: "{{ nexus_data_dir }}"
+    state: directory
+    mode: "0777"
+
+- name: Pull de l'image Nexus
+  command: docker pull {{ nexus_image }}
+  register: nexus_pull
+  changed_when: "'Downloaded newer image' in nexus_pull.stdout or 'Pull complete' in nexus_pull.stdout"
+
+- name: Vérifier si le conteneur Nexus existe déjà
+  shell: docker ps -a --format '{{"{{.Names}}"}}' | grep -w {{ nexus_container_name }}
+  register: nexus_container_exists
+  failed_when: false
+  changed_when: false
+
+- name: Supprimer l'ancien conteneur Nexus s'il existe
+  command: docker rm -f {{ nexus_container_name }}
+  when: nexus_container_exists.rc == 0
+
+- name: Lancer le conteneur Nexus
+  command: >
+    docker run -d
+    --name {{ nexus_container_name }}
+    --restart unless-stopped
+    -p {{ nexus_ui_port }}:8081
+    -p {{ nexus_docker_port }}:8082
+    -v {{ nexus_data_dir }}:/nexus-data
+    {{ nexus_image }}
+  register: nexus_run
+  changed_when: true

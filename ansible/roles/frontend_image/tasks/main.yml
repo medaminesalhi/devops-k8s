@@ -1,0 +1,5 @@
+- name: Frontend Image | Build
+  import_tasks: build.yml
+
+- name: Frontend Image | Push
+  import_tasks: push.yml

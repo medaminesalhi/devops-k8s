@@ -1,0 +1,14 @@
+---
+- name: Apply Flannel CNI manifest
+  become: true
+  command: >
+    kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for Flannel DaemonSet rollout
+  become: true
+  command: >
+    kubectl -n kube-flannel rollout status ds/kube-flannel-ds --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf

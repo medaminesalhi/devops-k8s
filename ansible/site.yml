@@ -1,0 +1,112 @@
+---
+- name: Preparation generale
+  hosts: all
+  become: true
+  roles:
+    - common
+    - nfs
+
+- name: Preparation Kubernetes
+  hosts: k8s
+  become: true
+  roles:
+    - container_runtime
+    - kubernetes
+
+- name: Initialiser le master
+  hosts: masters
+  become: true
+  roles:
+    - master
+    - flannel
+
+- name: Faire rejoindre les workers
+  hosts: workers
+  become: true
+  roles:
+    - workers
+
+- name: Ajouter les labels
+  hosts: masters
+  become: true
+  roles:
+    - labels
+
+- name: Installer ingress
+  hosts: masters
+  become: true
+  roles:
+    - ingress
+
+- name: Creer le stockage
+  hosts: masters
+  become: true
+  roles:
+    - storage
+
+- name: Deployer MySQL
+  hosts: masters
+  become: true
+  roles:
+    - mysql
+
+- name: Preparation tools
+  hosts: tools
+  become: true
+  roles:
+    - tools_prepare
+    - nfs
+
+- name: Installer Nexus
+  hosts: tools
+  become: true
+  roles:
+    - nexus
+
+- name: Activer TLS pour Nexus
+  hosts: tools
+  become: true
+  roles:
+    - nexus_proxy_tls
+
+- name: Installer Jenkins
+  hosts: tools
+  become: true
+  roles:
+    - jenkins
+
+- name: Construire et pousser l'image backend
+  hosts: tools
+  become: true
+  roles:
+    - backend_image
+
+- name: Faire confiance au registre Nexus sur le cluster
+  hosts: k8s
+  become: true
+  roles:
+    - registry_tls_trust
+
+- name: Deployer le backend
+  hosts: masters
+  become: true
+  roles:
+    - backend
+
+- name: Construire et pousser l'image frontend
+  hosts: tools
+  become: true
+  roles:
+    - frontend_image
+
+- name: Deployer le frontend
+  hosts: masters
+  become: true
+  roles:
+    - frontend
+
+- name: Deployer l'Ingress applicatif
+  hosts: masters
+  become: true
+  roles:
+    - app_ingress

@@ -1,0 +1,65 @@
+- name: Installer les paquets système requis
+  apt:
+    name:
+      - fontconfig
+      - curl
+      - gnupg
+      - apt-transport-https
+    state: present
+    update_cache: yes
+
+- name: Installer Java avant Jenkins
+  apt:
+    name: "{{ jenkins_java_package }}"
+    state: present
+    update_cache: yes
+
+- name: Créer le dossier des keyrings APT
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Supprimer ancienne clé Jenkins si elle existe
+  file:
+    path: /etc/apt/keyrings/jenkins-keyring.asc
+    state: absent
+
+- name: Supprimer ancien keyring Jenkins si il existe
+  file:
+    path: /etc/apt/keyrings/jenkins.gpg
+    state: absent
+
+- name: Télécharger la clé Jenkins
+  get_url:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    dest: /tmp/jenkins.io.key
+    mode: "0644"
+
+- name: Convertir la clé Jenkins au format GPG
+  command: >
+    gpg --dearmor -o /etc/apt/keyrings/jenkins.gpg /tmp/jenkins.io.key
+  args:
+    creates: /etc/apt/keyrings/jenkins.gpg
+
+- name: Ajouter le dépôt Jenkins
+  copy:
+    dest: /etc/apt/sources.list.d/jenkins.list
+    mode: "0644"
+    content: |
+      deb [signed-by=/etc/apt/keyrings/jenkins.gpg] https://pkg.jenkins.io/debian-stable binary/
+
+- name: Mettre à jour le cache APT
+  apt:
+    update_cache: yes
+
+- name: Installer Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Démarrer et activer Jenkins
+  systemd:
+    name: jenkins
+    enabled: yes
+    state: started

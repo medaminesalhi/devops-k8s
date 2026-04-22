@@ -1,0 +1,17 @@
+- name: Vérifier que le service Jenkins est actif
+  command: systemctl is-active jenkins
+  register: jenkins_service_status
+  changed_when: false
+
+- name: Afficher l'état du service Jenkins
+  debug:
+    var: jenkins_service_status.stdout_lines
+
+- name: Afficher l'URL Jenkins
+  debug:
+    msg: "Jenkins URL: http://10.10.0.10:{{ jenkins_http_port }}"
+
+- name: Afficher le mot de passe admin initial Jenkins
+  debug:
+    msg: "Mot de passe admin initial Jenkins: {{ jenkins_admin_password }}"
+  when: jenkins_admin_password is defined

@@ -1,0 +1,21 @@
+- name: Générer le Deployment frontend
+  template:
+    src: deployment.yml.j2
+    dest: /tmp/frontend-deployment.yml
+    mode: "0644"
+
+- name: Générer le Service frontend
+  template:
+    src: service.yml.j2
+    dest: /tmp/frontend-service.yml
+    mode: "0644"
+
+- name: Appliquer le Deployment frontend
+  command: kubectl apply -f /tmp/frontend-deployment.yml
+  environment:
+    KUBECONFIG: "{{ frontend_kubeconfig }}"
+
+- name: Appliquer le Service frontend
+  command: kubectl apply -f /tmp/frontend-service.yml
+  environment:
+    KUBECONFIG: "{{ frontend_kubeconfig }}"

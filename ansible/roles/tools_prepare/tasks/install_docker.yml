@@ -1,0 +1,45 @@
+- name: Créer le répertoire des keyrings APT
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Télécharger la clé GPG Docker
+  shell: |
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+
+- name: Ajouter le dépôt Docker
+  copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    content: |
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu focal stable
+
+- name: Installer Docker
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+- name: Démarrer et activer Docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+- name: Ajouter vagrant au groupe docker
+  user:
+    name: vagrant
+    groups: docker
+    append: yes
+
+- name: Installer le SDK Docker Python
+  pip:
+    name: docker
+    executable: pip3

@@ -1,0 +1,21 @@
+- name: Vérifier que le conteneur Nexus tourne
+  command: docker ps --filter name={{ nexus_container_name }} --format '{{"{{.Names}}"}}'
+  register: nexus_ps
+  changed_when: false
+
+- name: Afficher le conteneur Nexus
+  debug:
+    var: nexus_ps.stdout_lines
+
+- name: Afficher l'URL de Nexus
+  debug:
+    msg: "Nexus UI: {{ nexus_protocol }}://{{ nexus_host }}:{{ nexus_ui_port }}"
+
+- name: Afficher le port prévu pour le registry Docker
+  debug:
+    msg: "Docker hosted repo connector prévu sur : {{ nexus_host }}:{{ nexus_docker_port }}"
+
+- name: Afficher le mot de passe admin initial
+  debug:
+    msg: "Mot de passe admin initial Nexus: {{ nexus_admin_password }}"
+  when: nexus_admin_password is defined

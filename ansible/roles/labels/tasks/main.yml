@@ -1,0 +1,11 @@
+---
+- name: Label workers as worker role
+  become: true
+  command: >
+    kubectl label node {{ item }}
+    node-role.kubernetes.io/worker=worker
+    --overwrite
+  loop: "{{ groups['workers'] }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+

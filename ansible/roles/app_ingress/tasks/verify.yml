@@ -1,0 +1,32 @@
+- name: Afficher les ingress du namespace
+  command: kubectl get ingress -n {{ app_ingress_namespace }}
+  environment:
+    KUBECONFIG: "{{ app_ingress_kubeconfig }}"
+  register: app_ingress_list
+  changed_when: false
+
+- name: Afficher les ingress
+  debug:
+    var: app_ingress_list.stdout_lines
+
+- name: Décrire l'Ingress frontend
+  command: kubectl describe ingress {{ frontend_ingress_name }} -n {{ app_ingress_namespace }}
+  environment:
+    KUBECONFIG: "{{ app_ingress_kubeconfig }}"
+  register: frontend_ingress_desc
+  changed_when: false
+
+- name: Afficher la description frontend
+  debug:
+    var: frontend_ingress_desc.stdout_lines
+
+- name: Décrire l'Ingress backend
+  command: kubectl describe ingress {{ backend_ingress_name }} -n {{ app_ingress_namespace }}
+  environment:
+    KUBECONFIG: "{{ app_ingress_kubeconfig }}"
+  register: backend_ingress_desc
+  changed_when: false
+
+- name: Afficher la description backend
+  debug:
+    var: backend_ingress_desc.stdout_lines

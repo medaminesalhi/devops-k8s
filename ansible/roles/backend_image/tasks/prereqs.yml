@@ -1,0 +1,23 @@
+- name: Vérifier que Docker est installé
+  command: docker --version
+  changed_when: false
+
+- name: Vérifier que le dossier backend existe
+  stat:
+    path: "{{ backend_source_path }}"
+  register: backend_source_dir
+
+- name: Échouer si le dossier backend n'existe pas
+  fail:
+    msg: "Le dossier {{ backend_source_path }} n'existe pas."
+  when: not backend_source_dir.stat.exists
+
+- name: Vérifier que le Dockerfile existe
+  stat:
+    path: "{{ backend_dockerfile_path }}"
+  register: backend_dockerfile
+
+- name: Échouer si le Dockerfile n'existe pas
+  fail:
+    msg: "Le fichier {{ backend_dockerfile_path }} n'existe pas."
+  when: not backend_dockerfile.stat.exists

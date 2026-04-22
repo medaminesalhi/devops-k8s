@@ -1,0 +1,4 @@
+- hosts: tools
+  become: yes
+  roles:
+    - tools_prepare

@@ -1,0 +1,11 @@
+- name: Nexus TLS | Installer nginx
+  import_tasks: install.yml
+
+- name: Nexus TLS | Generer certificat
+  import_tasks: certs.yml
+
+- name: Nexus TLS | Configurer nginx
+  import_tasks: configure.yml
+
+- name: Nexus TLS | Verifier
+  import_tasks: verify.yml

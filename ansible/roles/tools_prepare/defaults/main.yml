@@ -1,0 +1,3 @@
+tools_node_major_version: "20"
+tools_mysql_root_password: "root123"
+tools_install_mysql: true

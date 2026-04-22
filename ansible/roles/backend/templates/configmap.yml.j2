@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ backend_configmap_name }}
+  namespace: {{ backend_namespace }}
+data:
+  DB_HOST: "{{ backend_db_host }}"
+  DB_PORT: "{{ backend_db_port }}"
+  DB_NAME: "{{ backend_db_name }}"

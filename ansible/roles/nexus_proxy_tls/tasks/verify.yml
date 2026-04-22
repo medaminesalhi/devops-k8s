@@ -1,0 +1,22 @@
+- name: Vérifier le port HTTPS du registry
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ nexus_docker_tls_port }}"
+    delay: 2
+    timeout: 60
+
+- name: Tester l'endpoint Docker Registry v2 en HTTPS
+  uri:
+    url: "{{ docker_registry_https_url }}/v2/"
+    method: GET
+    validate_certs: no
+    return_content: no
+    status_code: [200, 401]
+  register: nexus_registry_check
+  retries: 10
+  delay: 5
+  until: nexus_registry_check.status in [200, 401]
+
+- name: Afficher le résultat du test registry HTTPS
+  debug:
+    var: nexus_registry_check.status

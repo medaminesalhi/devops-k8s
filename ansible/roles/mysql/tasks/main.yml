@@ -1,0 +1,111 @@
+---
+- name: Copy MySQL deployment manifest
+  become: true
+  copy:
+    src: deployment.yaml
+    dest: /tmp/mysql-deployment.yaml
+    mode: '0644'
+
+- name: Apply MySQL deployment
+  become: true
+  command: kubectl apply -f /tmp/mysql-deployment.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Copy MySQL service manifest
+  become: true
+  copy:
+    src: service.yaml
+    dest: /tmp/mysql-service.yaml
+    mode: '0644'
+
+- name: Apply MySQL service
+  become: true
+  command: kubectl apply -f /tmp/mysql-service.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for MySQL pod to be Ready
+  become: true
+  command: kubectl wait --namespace project --for=condition=Ready pod -l app=mysql --timeout=50s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MySQL pods
+  become: true
+  command: kubectl get pods -n project -o wide
+  register: mysql_pods
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MySQL service
+  become: true
+  command: kubectl get svc -n project
+  register: mysql_svc
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Display MySQL pods
+  debug:
+    var: mysql_pods.stdout_lines
+
+- name: Display MySQL service
+  debug:
+    var: mysql_svc.stdout_lines1
+- name: Copy MySQL deployment manifest
+  become: true
+  copy:
+    src: deployment.yaml
+    dest: /tmp/mysql-deployment.yaml
+    mode: '0644'
+
+- name: Apply MySQL deployment
+  become: true
+  command: kubectl apply -f /tmp/mysql-deployment.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Copy MySQL service manifest
+  become: true
+  copy:
+    src: service.yaml
+    dest: /tmp/mysql-service.yaml
+    mode: '0644'
+
+- name: Apply MySQL service
+  become: true
+  command: kubectl apply -f /tmp/mysql-service.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Wait for MySQL pod to be Ready
+  become: true
+  command: kubectl wait --namespace project --for=condition=Ready pod -l app=mysql --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MySQL pods
+  become: true
+  command: kubectl get pods -n project -o wide
+  register: mysql_pods
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show MySQL service
+  become: true
+  command: kubectl get svc -n project
+  register: mysql_svc
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Display MySQL pods
+  debug:
+    var: mysql_pods.stdout_lines
+
+- name: Display MySQL service
+  debug:
+    var: mysql_svc.stdout_lines

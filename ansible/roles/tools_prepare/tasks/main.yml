@@ -1,0 +1,14 @@
+- name: Tools Prepare | Paquets de base
+  import_tasks: install_packages.yml
+
+- name: Tools Prepare | Docker
+  import_tasks: install_docker.yml
+
+- name: Tools Prepare | Node.js
+  import_tasks: install_node.yml
+
+- name: Tools Prepare | MySQL
+  import_tasks: install_mysql.yml
+
+- name: Tools Prepare | Vérification
+  import_tasks: verify.yml

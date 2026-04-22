@@ -1,0 +1,41 @@
+- name: Initialize Kubernetes cluster (master1)
+  command: >
+    kubeadm init
+    --apiserver-advertise-address={{ ansible_host }}
+    --pod-network-cidr=10.244.0.0/16
+  args:
+    creates: /etc/kubernetes/admin.conf
+  register: kubeadm_init
+
+- name: Create .kube directory for vagrant user
+  file:
+    path: /home/vagrant/.kube
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0755"
+
+- name: Copy admin.conf to user kube config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/vagrant/.kube/config
+    remote_src: true
+    owner: vagrant
+    group: vagrant
+    mode: "0644"
+
+# Important : cette commande join ne doit s’exécuter que si le cluster vient d’être initialisé
+- name: Generate join command (only when cluster is newly initialized)
+  command: kubeadm token create --print-join-command
+  register: join_command
+  when: kubeadm_init is changed
+
+- name: Save join command to file (for debug)
+  copy:
+    content: "{{ join_command.stdout }}"
+    dest: /home/vagrant/join-command.sh
+    owner: vagrant
+    group: vagrant
+    mode: "0755"
+  when: kubeadm_init is changed
+

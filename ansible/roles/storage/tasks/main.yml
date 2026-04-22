@@ -1,0 +1,59 @@
+---
+- name: Create project namespace
+  become: true
+  command: kubectl create namespace project
+  register: ns_result
+  failed_when: ns_result.rc != 0 and ("AlreadyExists" not in ns_result.stderr)
+  changed_when: "'created' in ns_result.stdout"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Copy PV manifest
+  become: true
+  copy:
+    src: pv.yaml
+    dest: /tmp/pv.yaml
+    mode: '0644'
+
+- name: Apply PV manifest
+  become: true
+  command: kubectl apply -f /tmp/pv.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Copy PVC manifest
+  become: true
+  copy:
+    src: pvc.yaml
+    dest: /tmp/pvc.yaml
+    mode: '0644'
+
+- name: Apply PVC manifest
+  become: true
+  command: kubectl apply -f /tmp/pvc.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show PV
+  become: true
+  command: kubectl get pv
+  register: pv_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show PVC
+  become: true
+  command: kubectl get pvc -n project
+  register: pvc_result
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Display PV result
+  debug:
+    var: pv_result.stdout_lines
+
+- name: Display PVC result
+  debug:
+    var: pvc_result.stdout_lines

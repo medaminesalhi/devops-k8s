@@ -1,0 +1,41 @@
+---
+- name: Install NFS server on tools
+  apt:
+    name: nfs-kernel-server
+    state: present
+    update_cache: yes
+  when: "'tools' in group_names"
+
+- name: Install NFS client on Kubernetes nodes
+  apt:
+    name: nfs-common
+    state: present
+    update_cache: yes
+  when: "'k8s' in group_names"
+
+- name: Create NFS shared directory
+  file:
+    path: /srv/nfs/mysql
+    state: directory
+    mode: '0777'
+  when: "'tools' in group_names"
+
+- name: Configure /etc/exports
+  template:
+    src: exports.j2
+    dest: /etc/exports
+    mode: '0644'
+  when: "'tools' in group_names"
+  notify: Restart NFS server
+
+- name: Export NFS shares
+  command: exportfs -rav
+  when: "'tools' in group_names"
+  changed_when: false
+
+- name: Ensure NFS server is started
+  service:
+    name: nfs-kernel-server
+    state: started
+    enabled: true
+  when: "'tools' in group_names"

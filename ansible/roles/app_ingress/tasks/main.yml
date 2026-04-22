@@ -1,0 +1,5 @@
+- name: App Ingress | Déploiement
+  import_tasks: deploy.yml
+
+- name: App Ingress | Vérification
+  import_tasks: verify.yml

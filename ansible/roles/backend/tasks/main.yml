@@ -1,0 +1,14 @@
+- name: Backend | Pré-requis
+  import_tasks: prereqs.yml
+
+- name: Backend | Namespace
+  import_tasks: namespace.yml
+
+- name: Backend | Configuration
+  import_tasks: config.yml
+
+- name: Backend | Déploiement
+  import_tasks: deploy.yml
+
+- name: Backend | Vérification
+  import_tasks: verify.yml

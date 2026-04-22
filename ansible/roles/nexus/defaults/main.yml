@@ -1,0 +1,11 @@
+nexus_container_name: nexus
+nexus_image: "sonatype/nexus3:3.90.3"
+nexus_data_dir: /opt/nexus-data
+
+nexus_ui_port: 8081
+nexus_docker_port: 8082
+
+nexus_host: 10.10.0.10
+nexus_protocol: http
+
+nexus_admin_user: admin

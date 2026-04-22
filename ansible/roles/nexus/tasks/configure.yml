@@ -1,0 +1,32 @@
+- name: Attendre que le port UI de Nexus réponde
+  wait_for:
+    host: 127.0.0.1
+    port: "{{ nexus_ui_port }}"
+    delay: 10
+    timeout: 300
+
+- name: Attendre que l'interface web Nexus soit disponible
+  uri:
+    url: "{{ nexus_protocol }}://{{ nexus_host }}:{{ nexus_ui_port }}"
+    method: GET
+    status_code: 200
+  register: nexus_http_check
+  retries: 30
+  delay: 10
+  until: nexus_http_check.status == 200
+
+- name: Vérifier la présence du mot de passe admin initial
+  stat:
+    path: "{{ nexus_data_dir }}/admin.password"
+  register: nexus_admin_password_file
+
+- name: Lire le mot de passe admin initial
+  slurp:
+    src: "{{ nexus_data_dir }}/admin.password"
+  register: nexus_admin_password_raw
+  when: nexus_admin_password_file.stat.exists
+
+- name: Définir le mot de passe admin initial
+  set_fact:
+    nexus_admin_password: "{{ nexus_admin_password_raw.content | b64decode | trim }}"
+  when: nexus_admin_password_file.stat.exists

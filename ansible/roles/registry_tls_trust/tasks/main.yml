@@ -1,0 +1,35 @@
+- name: Verifier que le certificat Nexus existe sur tools
+  stat:
+    path: "{{ registry_ca_source }}"
+  register: registry_ca_file
+  delegate_to: localhost
+  become: yes
+
+- name: Echouer si le certificat Nexus est absent sur tools
+  fail:
+    msg: "Le certificat {{ registry_ca_source }} est introuvable sur tools."
+  when: not registry_ca_file.stat.exists
+
+- name: Creer le dossier certs.d pour containerd
+  file:
+    path: "/etc/containerd/certs.d/{{ registry_hostport }}"
+    state: directory
+    mode: "0755"
+
+- name: Copier le certificat CA vers containerd
+  copy:
+    src: "{{ registry_ca_source }}"
+    dest: "/etc/containerd/certs.d/{{ registry_hostport }}/ca.crt"
+    mode: "0644"
+
+- name: Deployer hosts.toml pour containerd
+  template:
+    src: hosts.toml.j2
+    dest: "/etc/containerd/certs.d/{{ registry_hostport }}/hosts.toml"
+    mode: "0644"
+
+- name: Redemarrer containerd
+  systemd:
+    name: containerd
+    state: restarted
+    enabled: yes

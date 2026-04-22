@@ -1,0 +1,26 @@
+frontend_namespace: project
+
+frontend_app_name: frontend
+frontend_container_name: frontend
+
+frontend_image: "10.10.0.10:8443/frontend-students-app:1.0"
+frontend_image_pull_policy: Always
+
+frontend_replicas: 1
+
+frontend_container_port: 80
+frontend_service_port: 80
+frontend_service_type: ClusterIP
+
+frontend_deployment_name: frontend
+frontend_service_name: frontend
+
+frontend_kubeconfig: /home/vagrant/.kube/config
+
+frontend_resources:
+  requests:
+    cpu: "100m"
+    memory: "64Mi"
+  limits:
+    cpu: "300m"
+    memory: "256Mi"

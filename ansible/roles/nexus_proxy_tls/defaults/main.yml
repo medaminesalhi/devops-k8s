@@ -1,0 +1,12 @@
+nexus_host_ip: 10.10.0.10
+nexus_ui_port: 8081
+nexus_docker_backend_port: 8082
+nexus_docker_tls_port: 8443
+
+nexus_tls_dir: /etc/nginx/ssl
+nexus_cert_common_name: 10.10.0.10
+
+nexus_proxy_server_name: 10.10.0.10
+
+docker_registry_https_url: "https://{{ nexus_host_ip }}:{{ nexus_docker_tls_port }}"
+docker_registry_hostport: "{{ nexus_host_ip }}:{{ nexus_docker_tls_port }}"

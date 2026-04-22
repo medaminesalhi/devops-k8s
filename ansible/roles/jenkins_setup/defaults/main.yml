@@ -1,0 +1,18 @@
+jenkins_user: jenkins
+jenkins_group: jenkins
+jenkins_home: /var/lib/jenkins
+
+jenkins_plugins_file: /var/lib/jenkins/plugins.txt
+
+jenkins_kube_dir: /var/lib/jenkins/.kube
+jenkins_kubeconfig_dest: /var/lib/jenkins/.kube/config
+jenkins_kubeconfig_src: /home/vagrant/.kube/config
+
+nexus_registry_url: 10.10.0.10:8443
+nexus_ca_src: /etc/nginx/ssl/nexus.crt
+jenkins_docker_certs_dir: "/var/lib/jenkins/.docker/certs.d/{{ nexus_registry_url }}"
+
+kubectl_binary_path: /usr/bin/kubectl
+kubernetes_apt_keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+kubernetes_apt_repo_file: /etc/apt/sources.list.d/kubernetes.list
+kubernetes_apt_repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /"

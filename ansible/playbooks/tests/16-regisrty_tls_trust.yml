@@ -1,0 +1,4 @@
+- hosts: k8s
+  become: yes
+  roles:
+    - registry_tls_trust

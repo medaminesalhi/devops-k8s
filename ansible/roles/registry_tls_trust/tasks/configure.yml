@@ -1,0 +1,17 @@
+- name: Créer le dossier certs.d pour containerd
+  file:
+    path: "/etc/containerd/certs.d/{{ registry_hostport }}"
+    state: directory
+    mode: "0755"
+
+- name: Copier le certificat CA vers containerd
+  copy:
+    src: /home/vagrant/nexus.crt
+    dest: "/etc/containerd/certs.d/{{ registry_hostport }}/ca.crt"
+    mode: "0644"
+
+- name: Déployer hosts.toml pour containerd
+  template:
+    src: hosts.toml.j2
+    dest: "/etc/containerd/certs.d/{{ registry_hostport }}/hosts.toml"
+    mode: "0644"

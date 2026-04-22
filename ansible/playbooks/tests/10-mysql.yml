@@ -1,0 +1,6 @@
+---
+- name: Test MySQL role
+  hosts: masters
+  become: true
+  roles:
+    - mysql

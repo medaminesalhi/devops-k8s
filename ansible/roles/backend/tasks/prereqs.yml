@@ -1,0 +1,11 @@
+- name: Vérifier que kubectl est installé
+  command: kubectl version --client
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+  changed_when: false
+
+- name: Vérifier que le cluster est accessible
+  command: kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+  changed_when: false

@@ -1,0 +1,6 @@
+---
+- name: Test PV PVC storage role
+  hosts: masters
+  become: true
+  roles:
+    - storage

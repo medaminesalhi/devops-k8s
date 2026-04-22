@@ -1,0 +1,27 @@
+- name: Attendre que le déploiement frontend soit disponible
+  command: kubectl rollout status deployment/{{ frontend_deployment_name }} -n {{ frontend_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: "{{ frontend_kubeconfig }}"
+  changed_when: false
+
+- name: Afficher les pods frontend
+  command: kubectl get pods -n {{ frontend_namespace }} -l app={{ frontend_app_name }} -o wide
+  environment:
+    KUBECONFIG: "{{ frontend_kubeconfig }}"
+  register: frontend_pods
+  changed_when: false
+
+- name: Afficher le résultat des pods frontend
+  debug:
+    var: frontend_pods.stdout_lines
+
+- name: Afficher les services frontend
+  command: kubectl get svc -n {{ frontend_namespace }}
+  environment:
+    KUBECONFIG: "{{ frontend_kubeconfig }}"
+  register: frontend_svcs
+  changed_when: false
+
+- name: Afficher le résultat des services frontend
+  debug:
+    var: frontend_svcs.stdout_lines

@@ -1,0 +1,24 @@
+- name: Construire l'image Docker locale du backend
+  command: >
+    docker build -t {{ backend_image_name }}:{{ backend_image_tag }} .
+  args:
+    chdir: "{{ backend_source_path }}"
+  register: backend_build_result
+
+- name: Afficher le résultat du build
+  debug:
+    var: backend_build_result.stdout_lines
+
+- name: Tagger l'image pour Nexus
+  command: >
+    docker tag {{ backend_image_name }}:{{ backend_image_tag }}
+    {{ backend_full_image_name }}
+
+- name: Vérifier l'image taggée
+  command: docker images {{ backend_full_image_name }}
+  register: backend_image_check
+  changed_when: false
+
+- name: Afficher l'image taggée
+  debug:
+    var: backend_image_check.stdout_lines

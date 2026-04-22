@@ -1,0 +1,27 @@
+- name: Attendre que le déploiement backend soit disponible
+  command: kubectl rollout status deployment/{{ backend_deployment_name }} -n {{ backend_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+  changed_when: false
+
+- name: Afficher les pods du namespace
+  command: kubectl get pods -n {{ backend_namespace }} -o wide
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+  register: backend_pods
+  changed_when: false
+
+- name: Afficher les pods
+  debug:
+    var: backend_pods.stdout_lines
+
+- name: Afficher les services du namespace
+  command: kubectl get svc -n {{ backend_namespace }}
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+  register: backend_svcs
+  changed_when: false
+
+- name: Afficher les services
+  debug:
+    var: backend_svcs.stdout_lines

@@ -1,0 +1,71 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "backend-students-app"
+        IMAGE_TAG = "1.0"
+        REGISTRY = "10.10.0.10:8443"
+        FULL_IMAGE = "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        DOCKER_CERT_PATH = "/var/lib/jenkins/.docker/certs.d/10.10.0.10:8443"
+    }
+
+    stages {
+        stage('Check Tools') {
+            steps {
+                sh 'whoami'
+                sh 'docker --version'
+                sh 'kubectl version --client'
+            }
+        }
+
+        stage('Build Backend Image') {
+            steps {
+                dir('/home/vagrant/backend') {
+                    sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                    sh 'docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${FULL_IMAGE}'
+                }
+            }
+        }
+
+        stage('Docker Login Nexus') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh 'echo "$NEXUS_PASS" | docker login ${REGISTRY} -u "$NEXUS_USER" --password-stdin'
+                }
+            }
+        }
+
+        stage('Push Image To Nexus') {
+            steps {
+                sh 'docker push ${FULL_IMAGE}'
+            }
+        }
+
+        stage('Restart Backend Deployment') {
+            steps {
+                sh 'kubectl --kubeconfig ${KUBECONFIG} rollout restart deployment/backend -n project'
+                sh 'kubectl --kubeconfig ${KUBECONFIG} rollout status deployment/backend -n project --timeout=180s'
+            }
+        }
+
+        stage('Verify Backend') {
+            steps {
+                sh 'kubectl --kubeconfig ${KUBECONFIG} get pods -n project -o wide'
+                sh 'kubectl --kubeconfig ${KUBECONFIG} get svc -n project'
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker images | head -20'
+        }
+        success {
+            echo 'Pipeline backend terminé avec succès.'
+        }
+        failure {
+            echo 'Pipeline backend échoué.'
+        }
+    }
+}

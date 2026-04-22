@@ -1,0 +1,4 @@
+- hosts: tools
+  become: yes
+  roles:
+    - nexus_proxy_tls

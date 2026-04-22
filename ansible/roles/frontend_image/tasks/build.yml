@@ -1,0 +1,44 @@
+- name: Vérifier que le dossier frontend existe
+  stat:
+    path: "{{ frontend_source_path }}"
+  register: frontend_source_dir
+
+- name: Échouer si le dossier frontend n'existe pas
+  fail:
+    msg: "Le dossier {{ frontend_source_path }} n'existe pas."
+  when: not frontend_source_dir.stat.exists
+
+- name: Vérifier que le Dockerfile frontend existe
+  stat:
+    path: "{{ frontend_dockerfile_path }}"
+  register: frontend_dockerfile
+
+- name: Échouer si le Dockerfile frontend n'existe pas
+  fail:
+    msg: "Le fichier {{ frontend_dockerfile_path }} n'existe pas."
+  when: not frontend_dockerfile.stat.exists
+
+- name: Construire l'image Docker locale du frontend
+  command: >
+    docker build -t {{ frontend_image_name }}:{{ frontend_image_tag }} .
+  args:
+    chdir: "{{ frontend_source_path }}"
+  register: frontend_build_result
+
+- name: Afficher le résultat du build
+  debug:
+    var: frontend_build_result.stdout_lines
+
+- name: Tagger l'image frontend pour Nexus
+  command: >
+    docker tag {{ frontend_image_name }}:{{ frontend_image_tag }}
+    {{ frontend_full_image_name }}
+
+- name: Vérifier l'image frontend taggée
+  command: docker images {{ frontend_full_image_name }}
+  register: frontend_image_check
+  changed_when: false
+
+- name: Afficher l'image frontend taggée
+  debug:
+    var: frontend_image_check.stdout_lines

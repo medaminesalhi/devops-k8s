@@ -1,0 +1,16 @@
+- name: Télécharger le script NodeSource
+  get_url:
+    url: "https://deb.nodesource.com/setup_{{ tools_node_major_version }}.x"
+    dest: /tmp/nodesource_setup.sh
+    mode: "0755"
+
+- name: Ajouter le dépôt NodeSource
+  command: bash /tmp/nodesource_setup.sh
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list
+
+- name: Installer Node.js
+  apt:
+    name: nodejs
+    state: present
+    update_cache: yes

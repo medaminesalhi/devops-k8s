@@ -1,0 +1,26 @@
+- name: Déployer la configuration Nginx du registry Docker Nexus
+  template:
+    src: nexus-docker-proxy.conf.j2
+    dest: /etc/nginx/sites-available/nexus-docker-proxy.conf
+    mode: "0644"
+
+- name: Activer le site Nginx Nexus Docker Proxy
+  file:
+    src: /etc/nginx/sites-available/nexus-docker-proxy.conf
+    dest: /etc/nginx/sites-enabled/nexus-docker-proxy.conf
+    state: link
+
+- name: Désactiver le site par défaut Nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Vérifier la configuration Nginx
+  command: nginx -t
+  changed_when: false
+
+- name: Redémarrer Nginx
+  systemd:
+    name: nginx
+    enabled: yes
+    state: restarted

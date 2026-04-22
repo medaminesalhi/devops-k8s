@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ backend_service_name }}
+  namespace: {{ backend_namespace }}
+spec:
+  selector:
+    app: {{ backend_app_name }}
+  ports:
+    - protocol: TCP
+      port: {{ backend_service_port }}
+      targetPort: {{ backend_container_port }}
+  type: {{ backend_service_type }}

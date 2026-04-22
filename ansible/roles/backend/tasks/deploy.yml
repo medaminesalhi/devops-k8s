@@ -1,0 +1,21 @@
+- name: Générer le Deployment backend
+  template:
+    src: deployment.yml.j2
+    dest: /tmp/backend-deployment.yml
+    mode: "0644"
+
+- name: Générer le Service backend
+  template:
+    src: service.yml.j2
+    dest: /tmp/backend-service.yml
+    mode: "0644"
+
+- name: Appliquer le Deployment backend
+  command: kubectl apply -f /tmp/backend-deployment.yml
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+
+- name: Appliquer le Service backend
+  command: kubectl apply -f /tmp/backend-service.yml
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"

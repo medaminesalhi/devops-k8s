@@ -1,0 +1,122 @@
+---
+# 1) Installer ingress-nginx
+- name: Install Ingress NGINX (baremetal)
+  become: true
+  command: >
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 2) Attendre que le controller soit Ready
+- name: Wait for ingress-nginx controller pods to be Ready
+  become: true
+  command: >
+    kubectl -n ingress-nginx wait
+    --for=condition=Ready pod
+    -l app.kubernetes.io/component=controller
+    --timeout=300s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 3) Désactiver le ValidatingWebhook (cause du timeout dans ton lab)
+- name: Disable ingress-nginx validating webhook (lab fix)
+  become: true
+  command: >
+    kubectl delete validatingwebhookconfiguration ingress-nginx-admission --ignore-not-found
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 4) Créer namespace demo (idempotent)
+- name: Create demo namespace
+  become: true
+  command: kubectl create namespace demo
+  register: ns_demo
+  failed_when: ns_demo.rc != 0 and ("AlreadyExists" not in ns_demo.stderr)
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 5) Déployer nginx + service + ingress
+- name: Deploy demo app + service + ingress
+  become: true
+  shell: |
+    cat <<'YAML' | kubectl apply -f -
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: web
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: web
+      template:
+        metadata:
+          labels:
+            app: web
+        spec:
+          containers:
+            - name: nginx
+              image: nginx:stable
+              ports:
+                - containerPort: 80
+    ---
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: web
+      namespace: demo
+    spec:
+      selector:
+        app: web
+      ports:
+        - port: 80
+          targetPort: 80
+      type: ClusterIP
+    ---
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: web-ing
+      namespace: demo
+    spec:
+      ingressClassName: nginx
+      rules:
+        - host: app.local
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: web
+                    port:
+                      number: 80
+    YAML
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 6) Attendre que le pod nginx soit Ready
+- name: Wait for demo pod to be Ready
+  become: true
+  command: >
+    kubectl -n demo wait --for=condition=Ready pod -l app=web --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# 7) Récupérer le NodePort HTTP (pour faire le port-forward Vagrant)
+- name: Get Ingress HTTP NodePort
+  become: true
+  shell: >
+    kubectl -n ingress-nginx get svc ingress-nginx-controller
+    -o jsonpath='{.spec.ports[?(@.port==80)].nodePort}{"\n"}'
+  register: ingress_http_nodeport
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Show NodePort to forward from master1 to host
+  debug:
+    msg: "Ingress HTTP NodePort = {{ ingress_http_nodeport.stdout }} (Forward guest port {{ ingress_http_nodeport.stdout }} to host:8080)"

@@ -1,0 +1,13 @@
+backend_image_name: backend-students-app
+backend_image_tag: "1.0"
+
+backend_source_path: /home/vagrant/backend
+backend_dockerfile_path: /home/vagrant/backend/Dockerfile
+
+nexus_registry_host: 10.10.0.10
+nexus_registry_port: "8443"
+nexus_registry_url: "{{ nexus_registry_host }}:{{ nexus_registry_port }}"
+
+nexus_username: admin
+nexus_password: admin123
+backend_full_image_name: "{{ nexus_registry_url }}/{{ backend_image_name }}:{{ backend_image_tag }}"

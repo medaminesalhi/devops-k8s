@@ -1,0 +1,13 @@
+app_ingress_namespace: project
+
+frontend_service_name: frontend
+frontend_service_port: 80
+
+backend_service_name: backend
+backend_service_port: 5000
+
+frontend_ingress_name: frontend-ingress
+backend_ingress_name: backend-ingress
+
+app_ingress_class_name: nginx
+app_ingress_kubeconfig: /home/vagrant/.kube/config

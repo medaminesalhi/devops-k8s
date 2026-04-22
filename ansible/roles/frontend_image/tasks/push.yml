@@ -1,0 +1,42 @@
+- name: Créer le dossier de certificats Docker pour Nexus
+  file:
+    path: "/etc/docker/certs.d/{{ nexus_registry_url }}"
+    state: directory
+    mode: "0755"
+
+- name: Copier le certificat CA Nexus pour Docker
+  copy:
+    src: /etc/nginx/ssl/nexus.crt
+    dest: "/etc/docker/certs.d/{{ nexus_registry_url }}/ca.crt"
+    remote_src: yes
+    mode: "0644"
+
+- name: Vérifier que le registry Nexus HTTPS répond
+  uri:
+    url: "https://{{ nexus_registry_url }}/v2/"
+    method: GET
+    validate_certs: no
+    return_content: no
+    status_code: [200, 401]
+  register: nexus_registry_https_check
+  retries: 20
+  delay: 5
+  until: nexus_registry_https_check.status in [200, 401]
+
+- name: Login Docker sur Nexus
+  shell: |
+    echo '{{ nexus_password }}' | docker login {{ nexus_registry_url }} -u {{ nexus_username }} --password-stdin
+  register: nexus_login_result
+  changed_when: "'Login Succeeded' in nexus_login_result.stdout"
+
+- name: Afficher le résultat du login Docker
+  debug:
+    var: nexus_login_result.stdout_lines
+
+- name: Push de l'image frontend vers Nexus
+  command: docker push {{ frontend_full_image_name }}
+  register: frontend_push_result
+
+- name: Afficher le résultat du push
+  debug:
+    var: frontend_push_result.stdout_lines

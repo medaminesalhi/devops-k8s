@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ backend_deployment_name }}
+  namespace: {{ backend_namespace }}
+spec:
+  replicas: {{ backend_replicas }}
+  selector:
+    matchLabels:
+      app: {{ backend_app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ backend_app_name }}
+    spec:
+      containers:
+        - name: {{ backend_container_name }}
+          image: {{ backend_image }}
+          imagePullPolicy: {{ backend_image_pull_policy }}
+          ports:
+            - containerPort: {{ backend_container_port }}
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ backend_configmap_name }}
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ backend_configmap_name }}
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ backend_configmap_name }}
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ backend_secret_name }}
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ backend_secret_name }}
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: "{{ backend_resources.requests.cpu }}"
+              memory: "{{ backend_resources.requests.memory }}"
+            limits:
+              cpu: "{{ backend_resources.limits.cpu }}"
+              memory: "{{ backend_resources.limits.memory }}"

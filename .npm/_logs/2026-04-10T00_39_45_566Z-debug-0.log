@@ -1,0 +1,49 @@
+0 verbose cli [ '/usr/bin/node', '/usr/bin/npm', 'start' ]
+1 info using npm@8.5.1
+2 info using node@v12.22.9
+3 timing npm:load:whichnode Completed in 0ms
+4 timing config:load:defaults Completed in 2ms
+5 timing config:load:file:/usr/share/nodejs/npm/npmrc Completed in 6ms
+6 timing config:load:builtin Completed in 6ms
+7 timing config:load:cli Completed in 1ms
+8 timing config:load:env Completed in 0ms
+9 timing config:load:file:/home/vagrant/backend/.npmrc Completed in 0ms
+10 timing config:load:project Completed in 8ms
+11 timing config:load:file:/home/vagrant/.npmrc Completed in 0ms
+12 timing config:load:user Completed in 0ms
+13 timing config:load:file:/etc/npmrc Completed in 2ms
+14 timing config:load:global Completed in 2ms
+15 timing config:load:validate Completed in 0ms
+16 timing config:load:credentials Completed in 1ms
+17 timing config:load:setEnvs Completed in 1ms
+18 timing config:load Completed in 24ms
+19 timing npm:load:configload Completed in 24ms
+20 timing npm:load:setTitle Completed in 1ms
+21 timing config:load:flatten Completed in 5ms
+22 timing npm:load:display Completed in 8ms
+23 verbose logfile /home/vagrant/.npm/_logs/2026-04-10T00_39_45_566Z-debug-0.log
+24 timing npm:load:logFile Completed in 10ms
+25 timing npm:load:timers Completed in 0ms
+26 timing npm:load:configScope Completed in 0ms
+27 timing npm:load Completed in 46ms
+28 timing command:run-script Completed in 9ms
+29 timing command:start Completed in 17ms
+30 verbose stack JSONParseError: Unexpected token "{" (0x7B) in JSON at position 210 while parsing near "...\": \"node server.js\"\n{\n  \"dependencies\": ..."
+30 verbose stack     at /usr/share/nodejs/npm/node_modules/read-package-json-fast/index.js:11:61
+30 verbose stack     at async RunScript.run (/usr/share/nodejs/npm/lib/commands/run-script.js:75:19)
+30 verbose stack     at async module.exports (/usr/share/nodejs/npm/lib/cli.js:66:5)
+31 verbose cwd /home/vagrant/backend
+32 verbose Linux 5.15.0-170-generic
+33 verbose argv "/usr/bin/node" "/usr/bin/npm" "start"
+34 verbose node v12.22.9
+35 verbose npm  v8.5.1
+36 error code EJSONPARSE
+37 error path /home/vagrant/backend/package.json
+38 error JSON.parse Unexpected token "{" (0x7B) in JSON at position 210 while parsing near "...\": \"node server.js\"\n{\n  \"dependencies\": ..."
+39 error JSON.parse Failed to parse JSON data.
+39 error JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+40 verbose exit 1
+41 timing npm Completed in 297ms
+42 verbose code 1
+43 error A complete log of this run can be found in:
+43 error     /home/vagrant/.npm/_logs/2026-04-10T00_39_45_566Z-debug-0.log

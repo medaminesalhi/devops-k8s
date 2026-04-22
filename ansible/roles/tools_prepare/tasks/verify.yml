@@ -1,0 +1,37 @@
+- name: Vérifier Docker
+  command: docker --version
+  changed_when: false
+  register: docker_version
+
+- name: Afficher Docker
+  debug:
+    var: docker_version.stdout_lines
+
+- name: Vérifier Node.js
+  command: node -v
+  changed_when: false
+  register: node_version
+
+- name: Afficher Node.js
+  debug:
+    var: node_version.stdout_lines
+
+- name: Vérifier npm
+  command: npm -v
+  changed_when: false
+  register: npm_version
+
+- name: Afficher npm
+  debug:
+    var: npm_version.stdout_lines
+
+- name: Vérifier MySQL
+  command: mysql --version
+  changed_when: false
+  register: mysql_version
+  when: tools_install_mysql
+
+- name: Afficher MySQL
+  debug:
+    var: mysql_version.stdout_lines
+  when: tools_install_mysql

@@ -1,0 +1,21 @@
+- name: Générer le ConfigMap backend
+  template:
+    src: configmap.yml.j2
+    dest: /tmp/backend-configmap.yml
+    mode: "0644"
+
+- name: Générer le Secret backend
+  template:
+    src: secret.yml.j2
+    dest: /tmp/backend-secret.yml
+    mode: "0600"
+
+- name: Appliquer le ConfigMap backend
+  command: kubectl apply -f /tmp/backend-configmap.yml
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"
+
+- name: Appliquer le Secret backend
+  command: kubectl apply -f /tmp/backend-secret.yml
+  environment:
+    KUBECONFIG: "{{ backend_kubeconfig }}"

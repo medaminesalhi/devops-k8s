@@ -1,0 +1,14 @@
+frontend_image_name: frontend-students-app
+frontend_image_tag: "1.0"
+
+frontend_source_path: /home/vagrant/frontend
+frontend_dockerfile_path: /home/vagrant/frontend/Dockerfile
+
+nexus_registry_host: 10.10.0.10
+nexus_registry_port: "8443"
+nexus_registry_url: "{{ nexus_registry_host }}:{{ nexus_registry_port }}"
+
+nexus_username: admin
+nexus_password: "admin123"
+
+frontend_full_image_name: "{{ nexus_registry_url }}/{{ frontend_image_name }}:{{ frontend_image_tag }}"

@@ -1,0 +1,59 @@
+- name: Installer les paquets système requis
+  apt:
+    name:
+      - fontconfig
+      - curl
+      - wget
+      - gnupg
+      - apt-transport-https
+      - ca-certificates
+    state: present
+    update_cache: yes
+
+- name: Supprimer ancien fichier dépôt Jenkins si il existe
+  file:
+    path: "{{ jenkins_repo_file }}"
+    state: absent
+
+- name: Supprimer ancienne clé Jenkins si elle existe
+  file:
+    path: "{{ jenkins_repo_key_path }}"
+    state: absent
+
+- name: Créer le dossier des keyrings APT
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Télécharger la clé Jenkins officielle 2026
+  get_url:
+    url: "{{ jenkins_repo_key_url }}"
+    dest: "{{ jenkins_repo_key_path }}"
+    mode: "0644"
+
+- name: Ajouter le dépôt Jenkins
+  copy:
+    dest: "{{ jenkins_repo_file }}"
+    content: "{{ jenkins_repo_line }}\n"
+    mode: "0644"
+
+- name: Mettre à jour le cache APT avec le dépôt Jenkins
+  apt:
+    update_cache: yes
+
+- name: Installer Java avant Jenkins
+  apt:
+    name: "{{ jenkins_java_package }}"
+    state: present
+
+- name: Installer Jenkins
+  apt:
+    name: jenkins
+    state: present
+
+- name: Démarrer et activer Jenkins
+  systemd:
+    name: jenkins
+    enabled: yes
+    state: started

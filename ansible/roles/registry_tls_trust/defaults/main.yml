@@ -1,0 +1,4 @@
+registry_host: 10.10.0.10
+registry_port: "8443"
+registry_hostport: "{{ registry_host }}:{{ registry_port }}"
+registry_ca_source: /etc/nginx/ssl/nexus.crt

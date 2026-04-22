@@ -1,0 +1,5 @@
+- name: Frontend | Déploiement
+  import_tasks: deploy.yml
+
+- name: Frontend | Vérification
+  import_tasks: verify.yml

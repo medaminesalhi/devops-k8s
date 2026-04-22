@@ -1,0 +1,19 @@
+---
+- name: Vérifier si le worker est déjà joint au cluster
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Générer la commande kubeadm join depuis le master
+  command: kubeadm token create --print-join-command
+  register: join_cmd
+  delegate_to: master1
+  become: true
+  run_once: true
+  when: not kubelet_conf.stat.exists
+
+- name: Joindre le worker au cluster
+  command: "{{ join_cmd.stdout }} --ignore-preflight-errors=all"
+  become: true
+  when: not kubelet_conf.stat.exists
+

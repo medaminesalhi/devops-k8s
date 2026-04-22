@@ -1,0 +1,59 @@
+---
+# Rôle common : préparation système pour Kubernetes (tous les nœuds)
+
+- name: Install base packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - vim
+      - net-tools
+      - iproute2
+    state: present
+    update_cache: yes
+
+# Kubernetes (kubelet) refuse de fonctionner si le swap est activé
+- name: Disable swap (runtime)
+  command: swapoff -a
+  changed_when: false
+
+- name: Disable swap (persist in /etc/fstab)
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s.*)$'
+    replace: '# \1'
+
+# Modules noyau nécessaires : overlay (containerd) + br_netfilter (iptables pour pods)
+- name: Ensure kernel modules config file exists
+  copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+
+- name: Load overlay module
+  modprobe:
+    name: overlay
+    state: present
+
+- name: Load br_netfilter module
+  modprobe:
+    name: br_netfilter
+    state: present
+
+# Paramètres réseau indispensables pour Kubernetes
+- name: Configure sysctl params for Kubernetes networking
+  copy:
+    dest: /etc/sysctl.d/k8s.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+
+- name: Apply sysctl params
+  command: sysctl --system
+  changed_when: false
+

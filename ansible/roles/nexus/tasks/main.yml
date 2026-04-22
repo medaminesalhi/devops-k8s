@@ -1,0 +1,8 @@
+- name: Nexus | Installation
+  import_tasks: install.yml
+
+- name: Nexus | Configuration
+  import_tasks: configure.yml
+
+- name: Nexus | Vérification
+  import_tasks: verify.yml

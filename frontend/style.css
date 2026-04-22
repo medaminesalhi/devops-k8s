@@ -1,0 +1,84 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  color: #222;
+}
+
+.container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+#message {
+  margin-top: 15px;
+  font-weight: bold;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#studentsList {
+  list-style: none;
+  padding: 0;
+  margin-top: 15px;
+}
+
+#studentsList li {
+  background: #eef2ff;
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: 6px;
+}

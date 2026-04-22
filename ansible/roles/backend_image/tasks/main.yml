@@ -1,0 +1,8 @@
+- name: Backend Image | Pré-requis
+  import_tasks: prereqs.yml
+
+- name: Backend Image | Build
+  import_tasks: build.yml
+
+- name: Backend Image | Push Nexus
+  import_tasks: push.yml
