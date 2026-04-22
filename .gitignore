@@ -1,0 +1,39 @@
+# Secrets / SSH
+.ssh/
+*.pem
+*.key
+*.pub
+
+# Kubernetes / Docker / local configs
+.kube/
+.docker/
+.cache/
+.npm/
+.nvm/
+.ansible/tmp/
+
+# Shell / system history
+.bash_history
+.bash_logout
+.bashrc
+.profile
+.lesshst
+.mysql_history
+.gitconfig
+
+# Temp / logs
+*.log
+*.tmp
+*.swp
+*.retry
+
+# Python
+__pycache__/
+*.pyc
+
+# Vagrant
+.vagrant/
+
+# Env
+.env
+.env.*
