@@ -1,9 +1,27 @@
-jenkins_http_port: 8080
-jenkins_home: /var/lib/jenkins
-jenkins_admin_password_file: /var/lib/jenkins/secrets/initialAdminPassword
+---
+jenkins_namespace: cicd
 
-jenkins_java_package: openjdk-21-jre
-jenkins_repo_key_url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
-jenkins_repo_key_path: /etc/apt/keyrings/jenkins-keyring.asc
-jenkins_repo_file: /etc/apt/sources.list.d/jenkins.list
-jenkins_repo_line: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+jenkins_app_name: jenkins
+jenkins_deployment_name: jenkins
+jenkins_service_name: jenkins
+jenkins_ingress_name: jenkins-ingress
+
+jenkins_image: jenkins/jenkins:lts-jdk17
+jenkins_replicas: 1
+
+jenkins_http_port: 8080
+jenkins_agent_port: 50000
+
+jenkins_service_type: ClusterIP
+jenkins_ingress_class_name: nginx
+jenkins_ingress_host: jenkins.local
+
+jenkins_pvc_name: jenkins-home-pvc
+jenkins_pv_name: jenkins-home-pv
+jenkins_storage_size: 5Gi
+
+jenkins_nfs_server: 10.10.0.10
+jenkins_nfs_path: /srv/nfs/jenkins
+
+jenkins_manifest_dir: /tmp/jenkins-k8s
+jenkins_kubeconfig: /etc/kubernetes/admin.conf

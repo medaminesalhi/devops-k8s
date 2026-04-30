@@ -1,0 +1,13 @@
+---
+# Utilisateur principal dans nos VMs Vagrant
+kube_user: vagrant
+kube_group: vagrant
+kube_home: /home/vagrant
+
+# Emplacement standard du kubeconfig sur tools
+kubeconfig_dir: /home/vagrant/.kube
+kubeconfig_path: /home/vagrant/.kube/config
+
+# Script officiel d'installation Helm 3
+helm_install_script_url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+helm_install_script_path: /tmp/get_helm.sh

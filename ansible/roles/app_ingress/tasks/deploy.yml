@@ -1,21 +1,24 @@
-- name: Générer l'Ingress frontend
+---
+- name: App Ingress | Générer le manifeste frontend ingress
+  become: true
   template:
     src: frontend-ingress.yml.j2
     dest: /tmp/frontend-ingress.yml
-    mode: "0644"
 
-- name: Générer l'Ingress backend
+- name: App Ingress | Générer le manifeste backend ingress
+  become: true
   template:
     src: backend-ingress.yml.j2
     dest: /tmp/backend-ingress.yml
-    mode: "0644"
 
-- name: Appliquer l'Ingress frontend
+- name: App Ingress | Appliquer le frontend ingress
+  become: true
   command: kubectl apply -f /tmp/frontend-ingress.yml
   environment:
     KUBECONFIG: "{{ app_ingress_kubeconfig }}"
 
-- name: Appliquer l'Ingress backend
+- name: App Ingress | Appliquer le backend ingress
+  become: true
   command: kubectl apply -f /tmp/backend-ingress.yml
   environment:
     KUBECONFIG: "{{ app_ingress_kubeconfig }}"

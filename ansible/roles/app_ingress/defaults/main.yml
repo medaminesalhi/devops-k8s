@@ -1,4 +1,6 @@
+---
 app_ingress_namespace: project
+app_ingress_host: app.local
 
 frontend_service_name: frontend
 frontend_service_port: 80

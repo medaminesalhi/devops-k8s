@@ -1,0 +1,122 @@
+---
+- name: Install required packages on tools
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+    state: present
+    update_cache: yes
+  tags:
+    - helm_client
+
+- name: Check if kubectl is installed on tools
+  command: kubectl version --client=true --short
+  register: kubectl_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - helm_client
+
+- name: Display kubectl status
+  debug:
+    msg: "kubectl is available: {{ kubectl_check.stdout }}"
+  when: kubectl_check.rc == 0
+  tags:
+    - helm_client
+
+- name: Warn if kubectl is not installed
+  debug:
+    msg: "kubectl is not installed on tools. Install kubectl first or add kubectl installation to this role."
+  when: kubectl_check.rc != 0
+  tags:
+    - helm_client
+
+- name: Check if Helm is already installed on tools
+  command: helm version --short
+  register: helm_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - helm_client
+
+- name: Download Helm install script
+  get_url:
+    url: "{{ helm_install_script_url }}"
+    dest: "{{ helm_install_script_path }}"
+    mode: "0755"
+  when: helm_check.rc != 0
+  tags:
+    - helm_client
+
+- name: Install Helm on tools
+  command: "{{ helm_install_script_path }}"
+  when: helm_check.rc != 0
+  tags:
+    - helm_client
+
+- name: Check Helm version after installation
+  command: helm version --short
+  register: helm_version
+  changed_when: false
+  tags:
+    - helm_client
+
+- name: Display Helm version
+  debug:
+    var: helm_version.stdout
+  tags:
+    - helm_client
+
+- name: Ensure kubeconfig directory exists on tools
+  file:
+    path: "{{ kubeconfig_dir }}"
+    state: directory
+    owner: "{{ kube_user }}"
+    group: "{{ kube_group }}"
+    mode: "0755"
+  tags:
+    - helm_client
+
+- name: Check if kubeconfig exists on tools
+  stat:
+    path: "{{ kubeconfig_path }}"
+  register: kubeconfig_stat
+  tags:
+    - helm_client
+
+- name: Warn if kubeconfig is missing
+  debug:
+    msg: "Le fichier {{ kubeconfig_path }} n'existe pas encore sur tools. Il faut copier /home/vagrant/.kube/config depuis master1 vers tools."
+  when: not kubeconfig_stat.stat.exists
+  tags:
+    - helm_client
+
+- name: Test Kubernetes access from tools with kubectl
+  command: kubectl get nodes
+  become_user: "{{ kube_user }}"
+  register: kubectl_nodes
+  changed_when: false
+  failed_when: false
+  when: kubeconfig_stat.stat.exists
+  tags:
+    - helm_client
+
+- name: Display Kubernetes nodes
+  debug:
+    var: kubectl_nodes.stdout_lines
+  when:
+    - kubeconfig_stat.stat.exists
+    - kubectl_nodes.rc == 0
+  tags:
+    - helm_client
+
+- name: Warn if tools cannot access the Kubernetes cluster
+  debug:
+    msg: "kubectl existe, mais tools ne peut pas encore accéder au cluster. Vérifie le kubeconfig ou l'adresse API Server."
+  when:
+    - kubeconfig_stat.stat.exists
+    - kubectl_nodes.rc != 0
+  tags:
+    - helm_client

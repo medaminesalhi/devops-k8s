@@ -1,0 +1,44 @@
+---
+# Ce fichier personnalise l'installation Helm kube-prometheus-stack.
+# Il est généré par Ansible sur la VM tools.
+
+grafana:
+  enabled: false
+
+alertmanager:
+  enabled: false
+
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    replicas: {{ prometheus_replicas }}
+    retention: {{ prometheus_retention }}
+    scrapeInterval: {{ prometheus_scrape_interval }}
+    evaluationInterval: {{ prometheus_evaluation_interval }}
+
+    # Ces options facilitent la découverte future de ServiceMonitor/PodMonitor.
+    # Pratique quand on ajoutera des métriques backend/frontend.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+    # Ressources modestes adaptées à notre lab Vagrant.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+prometheusOperator:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+defaultRules:
+  create: true

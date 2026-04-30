@@ -1,0 +1,6 @@
+---
+- name: Test Helm client installation on tools
+  hosts: tools
+  become: yes
+  roles:
+    - helm_client

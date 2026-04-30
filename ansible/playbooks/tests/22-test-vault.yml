@@ -1,0 +1,28 @@
+---
+- name: Test Ansible Vault variables
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - ../../group_vars/all/main.yml
+    - ../../group_vars/all/vault.yml
+
+  tasks:
+    - name: Show non-sensitive variable
+      debug:
+        msg: "Namespace applicatif = {{ app_namespace }}"
+
+    - name: Check MySQL secret variable is loaded without displaying it
+      debug:
+        msg: "Le mot de passe MySQL est bien charge"
+      when: vault_mysql_app_password is defined
+
+    - name: Check Jenkins secret variable is loaded without displaying it
+      debug:
+        msg: "Le mot de passe Jenkins est bien charge"
+      when: vault_jenkins_admin_password is defined
+
+    - name: Check Nexus registry secret variable is loaded without displaying it
+      debug:
+        msg: "Le mot de passe Registry Nexus est bien charge"
+      when: vault_registry_password is defined

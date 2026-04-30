@@ -1,0 +1,6 @@
+---
+- name: Installer et configurer Gitea sur tools
+  hosts: tools
+  become: true
+  roles:
+    - gitea

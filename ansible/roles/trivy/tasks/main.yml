@@ -1,0 +1,58 @@
+---
+- name: Trivy | Install required packages
+  apt:
+    name:
+      - wget
+      - apt-transport-https
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Trivy | Add Trivy GPG key
+  shell: |
+    wget -qO - https://get.trivy.dev/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null
+  args:
+    creates: /usr/share/keyrings/trivy.gpg
+  become: true
+
+- name: Trivy | Add Trivy apt repository
+  copy:
+    dest: /etc/apt/sources.list.d/trivy.list
+    content: |
+      deb [signed-by=/usr/share/keyrings/trivy.gpg] https://get.trivy.dev/deb generic main
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Trivy | Install Trivy
+  apt:
+    name: trivy
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Trivy | Verify Trivy installation
+  command: trivy --version
+  register: trivy_version
+  changed_when: false
+
+- name: Trivy | Show installed version
+  debug:
+    msg: "{{ trivy_version.stdout_lines }}"
+
+- name: Trivy | Create Trivy cache directory
+  file:
+    path: "{{ trivy_cache_dir }}"
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0755"
+  become: true
+
+- name: Trivy | Download vulnerability database
+  command: trivy image --download-db-only
+  become: false
+  changed_when: false

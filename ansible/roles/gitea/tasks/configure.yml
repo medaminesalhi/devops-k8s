@@ -1,0 +1,31 @@
+---
+- name: Gitea | Attendre que Gitea démarre
+  uri:
+    url: "{{ gitea_root_url }}"
+    method: GET
+    status_code: [200, 302]
+  register: gitea_http_check
+  retries: 30
+  delay: 5
+  until: gitea_http_check.status in [200, 302]
+
+- name: Gitea | Vérifier si l'utilisateur admin existe déjà
+  command: >
+    docker exec -u git {{ gitea_container_name }}
+    gitea admin user list
+  register: gitea_users
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Gitea | Créer l'utilisateur admin
+  command: >
+    docker exec -u git {{ gitea_container_name }}
+    gitea admin user create
+    --username {{ gitea_admin_user }}
+    --password {{ gitea_admin_password }}
+    --email {{ gitea_admin_email }}
+    --admin
+    --must-change-password=false
+  when: gitea_admin_user not in gitea_users.stdout
+  become: true

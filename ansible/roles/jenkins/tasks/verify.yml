@@ -1,17 +1,55 @@
-- name: Vérifier que le service Jenkins est actif
-  command: systemctl is-active jenkins
-  register: jenkins_service_status
+---
+- name: Jenkins K8s | Afficher les pods
+  become: true
+  command: kubectl get pods -n {{ jenkins_namespace }} -o wide
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+  register: jenkins_pods
   changed_when: false
 
-- name: Afficher l'état du service Jenkins
-  debug:
-    var: jenkins_service_status.stdout_lines
+- name: Jenkins K8s | Afficher les services
+  become: true
+  command: kubectl get svc -n {{ jenkins_namespace }}
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+  register: jenkins_svcs
+  changed_when: false
 
-- name: Afficher l'URL Jenkins
-  debug:
-    msg: "Jenkins URL: http://10.10.0.10:{{ jenkins_http_port }}"
+- name: Jenkins K8s | Afficher les ingress
+  become: true
+  command: kubectl get ingress -n {{ jenkins_namespace }}
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+  register: jenkins_ingress
+  changed_when: false
 
-- name: Afficher le mot de passe admin initial Jenkins
+- name: Jenkins K8s | Résultat pods
   debug:
-    msg: "Mot de passe admin initial Jenkins: {{ jenkins_admin_password }}"
-  when: jenkins_admin_password is defined
+    var: jenkins_pods.stdout_lines
+
+- name: Jenkins K8s | Résultat services
+  debug:
+    var: jenkins_svcs.stdout_lines
+
+- name: Jenkins K8s | Résultat ingress
+  debug:
+    var: jenkins_ingress.stdout_lines
+
+- name: Jenkins K8s | Récupérer le mot de passe initial Jenkins
+  become: true
+  command: >
+    kubectl exec -n {{ jenkins_namespace }}
+    deployment/{{ jenkins_deployment_name }}
+    -- cat /var/jenkins_home/secrets/initialAdminPassword
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+  register: jenkins_initial_password
+  changed_when: false
+  failed_when: false
+
+- name: Jenkins K8s | Afficher accès Jenkins
+  debug:
+    msg:
+      - "Jenkins URL interne : http://{{ jenkins_service_name }}.{{ jenkins_namespace }}.svc.cluster.local:{{ jenkins_http_port }}"
+      - "Jenkins host Ingress : http://{{ jenkins_ingress_host }}:8080"
+      - "Mot de passe initial : {{ jenkins_initial_password.stdout | default('Pas encore disponible') }}"

@@ -1,0 +1,22 @@
+---
+# Namespace dédié au monitoring
+monitoring_namespace: monitoring
+
+# Repository Helm officiel de la communauté Prometheus
+prometheus_chart_repo_name: prometheus-community
+prometheus_chart_repo_url: https://prometheus-community.github.io/helm-charts
+
+# Release Helm
+prometheus_release_name: kube-prometheus-stack
+prometheus_chart_name: prometheus-community/kube-prometheus-stack
+
+# Configuration Prometheus
+prometheus_retention: 7d
+prometheus_scrape_interval: 30s
+prometheus_evaluation_interval: 30s
+
+# Pour notre lab VirtualBox/Vagrant, on garde une seule instance Prometheus
+prometheus_replicas: 1
+
+# Fichier values rendu par Ansible sur tools
+prometheus_values_dest: /tmp/kube-prometheus-values.yml

@@ -1,4 +1,0 @@
-- hosts: tools
-  become: yes
-  roles:
-    - jenkins_setup

@@ -1,0 +1,49 @@
+---
+- name: Jenkins K8s | Créer le dossier temporaire des manifests
+  become: true
+  file:
+    path: "{{ jenkins_manifest_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Jenkins K8s | Générer namespace
+  become: true
+  template:
+    src: namespace.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/namespace.yml"
+
+- name: Jenkins K8s | Générer RBAC
+  become: true
+  template:
+    src: rbac.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/rbac.yml"
+
+- name: Jenkins K8s | Générer PV
+  become: true
+  template:
+    src: pv.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/pv.yml"
+
+- name: Jenkins K8s | Générer PVC
+  become: true
+  template:
+    src: pvc.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/pvc.yml"
+
+- name: Jenkins K8s | Générer Deployment
+  become: true
+  template:
+    src: deployment.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/deployment.yml"
+
+- name: Jenkins K8s | Générer Service
+  become: true
+  template:
+    src: service.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/service.yml"
+
+- name: Jenkins K8s | Générer Ingress
+  become: true
+  template:
+    src: ingress.yml.j2
+    dest: "{{ jenkins_manifest_dir }}/ingress.yml"

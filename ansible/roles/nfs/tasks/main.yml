@@ -1,41 +1,74 @@
 ---
-- name: Install NFS server on tools
+- name: NFS | Installer le serveur NFS sur tools
   apt:
     name: nfs-kernel-server
     state: present
     update_cache: yes
   when: "'tools' in group_names"
 
-- name: Install NFS client on Kubernetes nodes
+- name: NFS | Installer le client NFS sur les noeuds Kubernetes
   apt:
     name: nfs-common
     state: present
     update_cache: yes
   when: "'k8s' in group_names"
 
-- name: Create NFS shared directory
+- name: NFS | Creer le dossier NFS parent
+  file:
+    path: /srv/nfs
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: "'tools' in group_names"
+
+- name: NFS | Creer le dossier NFS pour MySQL
   file:
     path: /srv/nfs/mysql
     state: directory
-    mode: '0777'
+    owner: "999"
+    group: "999"
+    mode: "0777"
   when: "'tools' in group_names"
 
-- name: Configure /etc/exports
+- name: NFS | Creer le dossier NFS pour Jenkins
+  file:
+    path: /srv/nfs/jenkins
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0775"
+  when: "'tools' in group_names"
+
+- name: NFS | Configurer /etc/exports
   template:
     src: exports.j2
     dest: /etc/exports
-    mode: '0644'
+    owner: root
+    group: root
+    mode: "0644"
   when: "'tools' in group_names"
   notify: Restart NFS server
 
-- name: Export NFS shares
+- name: NFS | Exporter les partages NFS
   command: exportfs -rav
-  when: "'tools' in group_names"
   changed_when: false
+  when: "'tools' in group_names"
 
-- name: Ensure NFS server is started
+- name: NFS | Redemarrer et activer le serveur NFS
   service:
     name: nfs-kernel-server
-    state: started
+    state: restarted
     enabled: true
+  when: "'tools' in group_names"
+
+- name: NFS | Verifier les exports NFS
+  command: exportfs -v
+  register: nfs_exports_result
+  changed_when: false
+  when: "'tools' in group_names"
+
+- name: NFS | Afficher les exports NFS
+  debug:
+    var: nfs_exports_result.stdout_lines
   when: "'tools' in group_names"

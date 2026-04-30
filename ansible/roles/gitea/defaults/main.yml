@@ -1,0 +1,26 @@
+---
+# Nom du conteneur Docker
+gitea_container_name: gitea
+
+# Image Docker utilisée
+gitea_image: gitea/gitea:1.22.6
+
+# Dossier persistant sur la machine tools
+gitea_data_dir: /opt/gitea
+
+# Adresse IP de la machine tools
+gitea_domain: "10.10.0.10"
+
+# Port web de Gitea
+gitea_http_port: 3000
+
+# Port SSH externe pour Git
+gitea_ssh_port: 2222
+
+# URL publique de Gitea
+gitea_root_url: "http://10.10.0.10:3000/"
+
+# Utilisateur admin initial
+gitea_admin_user: salhi
+gitea_admin_password: "salhi12345"
+gitea_admin_email: "salhi@gitea.local"

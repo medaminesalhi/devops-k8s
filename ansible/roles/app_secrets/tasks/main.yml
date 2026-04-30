@@ -1,0 +1,87 @@
+---
+- name: App Secrets | Install Python dependencies for Kubernetes modules
+  apt:
+    name:
+      - python3-pip
+      - python3-kubernetes
+    state: present
+    update_cache: yes
+  become: true
+
+- name: App Secrets | Verify Python Kubernetes client is available
+  command: python3 -c "import kubernetes; print('kubernetes python client OK')"
+  changed_when: false
+
+- name: App Secrets | Validate required variables are defined
+  assert:
+    that:
+      - app_namespace is defined
+      - mysql_secret_name is defined
+      - backend_secret_name is defined
+      - mysql_database is defined
+      - mysql_app_user is defined
+      - mysql_service_name is defined
+      - mysql_service_port is defined
+      - vault_mysql_root_password is defined
+      - vault_mysql_app_password is defined
+    fail_msg: "Une ou plusieurs variables requises pour app_secrets sont absentes."
+    success_msg: "Toutes les variables requises pour app_secrets sont definies."
+
+- name: App Secrets | Ensure application namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ app_namespace }}"
+        labels:
+          name: "{{ app_namespace }}"
+          managed-by: ansible
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: App Secrets | Apply MySQL Kubernetes Secret
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'mysql-secret.yml.j2') | from_yaml }}"
+  no_log: true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: App Secrets | Apply Backend Kubernetes Secret
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'backend-secret.yml.j2') | from_yaml }}"
+  no_log: true
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: App Secrets | Remove dangerous last-applied annotation from MySQL Secret
+  command: >
+    kubectl annotate secret {{ mysql_secret_name }}
+    -n {{ app_namespace }}
+    kubectl.kubernetes.io/last-applied-configuration-
+  failed_when: false
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: App Secrets | Remove dangerous last-applied annotation from Backend Secret
+  command: >
+    kubectl annotate secret {{ backend_secret_name }}
+    -n {{ app_namespace }}
+    kubectl.kubernetes.io/last-applied-configuration-
+  failed_when: false
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: App Secrets | Verify secrets exist
+  command: kubectl get secret {{ item }} -n {{ app_namespace }}
+  loop:
+    - "{{ mysql_secret_name }}"
+    - "{{ backend_secret_name }}"
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf

@@ -1,2 +1,13 @@
 ---
-# defaults file for nfs
+nfs_network: "10.10.0.0/24"
+
+nfs_exports:
+  - path: /srv/nfs/mysql
+    owner: "999"
+    group: "999"
+    mode: "0777"
+
+  - path: /srv/nfs/jenkins
+    owner: "1000"
+    group: "1000"
+    mode: "0775"

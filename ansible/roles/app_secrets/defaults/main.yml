@@ -1,0 +1,3 @@
+---
+mysql_secret_name: mysql-secret
+backend_secret_name: backend-secret

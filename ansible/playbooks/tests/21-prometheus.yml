@@ -1,0 +1,6 @@
+---
+- name: Test Prometheus installation from tools
+  hosts: tools
+  become: yes
+  roles:
+    - prometheus

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ jenkins_deployment_name }}
+  namespace: {{ jenkins_namespace }}
+spec:
+  replicas: {{ jenkins_replicas }}
+  selector:
+    matchLabels:
+      app: {{ jenkins_app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ jenkins_app_name }}
+    spec:
+      serviceAccountName: {{ jenkins_app_name }}
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: {{ jenkins_app_name }}
+          image: {{ jenkins_image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ jenkins_http_port }}
+            - name: agent
+              containerPort: {{ jenkins_agent_port }}
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
+      volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: {{ jenkins_pvc_name }}

@@ -28,6 +28,13 @@
     dest: "/etc/containerd/certs.d/{{ registry_hostport }}/hosts.toml"
     mode: "0644"
 
+- name: Registry TLS Trust | Activer config_path certs.d dans containerd
+  replace:
+    path: /etc/containerd/config.toml
+    regexp: 'config_path = ""'
+    replace: 'config_path = "/etc/containerd/certs.d"'
+  become: true
+
 - name: Redemarrer containerd
   systemd:
     name: containerd

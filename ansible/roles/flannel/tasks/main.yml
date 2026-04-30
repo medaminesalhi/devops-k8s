@@ -1,14 +1,69 @@
 ---
-- name: Apply Flannel CNI manifest
+- name: Flannel | Apply Flannel CNI manifest
   become: true
   command: >
     kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
-- name: Wait for Flannel DaemonSet rollout
+- name: Flannel | Wait for Flannel DaemonSet to exist
+  become: true
+  command: >
+    kubectl -n kube-flannel get daemonset kube-flannel-ds
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: flannel_ds_check
+  retries: 10
+  delay: 5
+  until: flannel_ds_check.rc == 0
+
+- name: Flannel | Force Flannel to use the Kubernetes network interface enp0s8
+  become: true
+  command: >
+    kubectl patch daemonset kube-flannel-ds
+    -n kube-flannel
+    --type=json
+    -p='[
+      {
+        "op": "replace",
+        "path": "/spec/template/spec/containers/0/args",
+        "value": ["--ip-masq", "--kube-subnet-mgr", "--iface=enp0s8"]
+      }
+    ]'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: flannel_iface_patch
+  changed_when: "'patched' in flannel_iface_patch.stdout"
+  failed_when: false
+
+- name: Flannel | Restart Flannel pods to apply interface change
+  become: true
+  command: >
+    kubectl delete pod -n kube-flannel -l app=flannel
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: flannel_restart
+  changed_when: "'deleted' in flannel_restart.stdout"
+  failed_when: false
+
+- name: Flannel | Wait for Flannel DaemonSet rollout
   become: true
   command: >
     kubectl -n kube-flannel rollout status ds/kube-flannel-ds --timeout=180s
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Flannel | Verify Flannel interface argument
+  become: true
+  command: >
+    kubectl get daemonset kube-flannel-ds
+    -n kube-flannel
+    -o jsonpath='{.spec.template.spec.containers[0].args}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: flannel_args
+  changed_when: false
+
+- name: Flannel | Show Flannel arguments
+  debug:
+    msg: "Flannel args: {{ flannel_args.stdout }}"

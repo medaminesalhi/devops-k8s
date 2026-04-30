@@ -9,7 +9,8 @@ metadata:
 spec:
   ingressClassName: {{ app_ingress_class_name }}
   rules:
-    - http:
+    - host: {{ app_ingress_host }}
+      http:
         paths:
           - path: /api(/|$)(.*)
             pathType: ImplementationSpecific

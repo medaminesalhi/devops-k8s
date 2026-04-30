@@ -1,0 +1,42 @@
+---
+# =========================
+# Global project variables
+# =========================
+app_namespace: project
+cicd_namespace: cicd
+
+# =========================
+# Network / hosts
+# =========================
+tools_ip: "10.10.0.10"
+master_ip: "10.10.0.11"
+worker1_ip: "10.10.0.21"
+worker2_ip: "10.10.0.22"
+
+# =========================
+# Application database
+# =========================
+mysql_service_name: mysql
+mysql_service_port: "3306"
+mysql_database: appdb
+mysql_app_user: appuser
+
+# =========================
+# Nexus registry
+# =========================
+nexus_host: "10.10.0.10"
+nexus_ui_port: "8081"
+nexus_registry_port: "8443"
+nexus_registry_url: "10.10.0.10:8443"
+
+# =========================
+# Gitea
+# =========================
+gitea_url: "http://10.10.0.10:3000"
+gitea_ssh_port: "2222"
+
+# =========================
+# Jenkins
+# =========================
+jenkins_host: "jenkins.local"
+jenkins_url: "http://jenkins.local:32254"

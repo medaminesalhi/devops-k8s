@@ -1,0 +1,38 @@
+---
+- name: Gitea | Télécharger l'image Docker
+  command: docker pull {{ gitea_image }}
+  changed_when: false
+
+- name: Gitea | Vérifier si le conteneur existe déjà
+  shell: docker ps -a --format '{{ "{{" }}.Names{{ "}}" }}' | grep -w {{ gitea_container_name }}
+  register: gitea_container_exists
+  failed_when: false
+  changed_when: false
+
+- name: Gitea | Supprimer l'ancien conteneur si besoin
+  command: docker rm -f {{ gitea_container_name }}
+  when: gitea_container_exists.rc == 0
+  become: true
+
+- name: Gitea | Lancer le conteneur Gitea
+  command: >
+    docker run -d
+    --name {{ gitea_container_name }}
+    --restart unless-stopped
+    -p {{ gitea_http_port }}:3000
+    -p {{ gitea_ssh_port }}:22
+    -v {{ gitea_data_dir }}:/data
+    -e USER_UID=1000
+    -e USER_GID=1000
+    -e GITEA__server__DOMAIN={{ gitea_domain }}
+    -e GITEA__server__SSH_DOMAIN={{ gitea_domain }}
+    -e GITEA__server__ROOT_URL={{ gitea_root_url }}
+    -e GITEA__server__HTTP_PORT=3000
+    -e GITEA__server__DISABLE_SSH=false
+    -e GITEA__server__SSH_PORT={{ gitea_ssh_port }}
+    -e GITEA__server__SSH_LISTEN_PORT=22
+    -e GITEA__database__DB_TYPE=sqlite3
+    -e GITEA__service__DISABLE_REGISTRATION=false
+    -e GITEA__security__INSTALL_LOCK=true
+    {{ gitea_image }}
+  become: true

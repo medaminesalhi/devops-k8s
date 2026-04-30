@@ -6,6 +6,13 @@
     - common
     - nfs
 
+- name: Installer Trivy sur tools
+  hosts: tools
+  become: true
+  roles:
+    - role: trivy
+      tags: trivy
+
 - name: Preparation Kubernetes
   hosts: k8s
   become: true
@@ -38,6 +45,13 @@
   roles:
     - ingress
 
+- name: Create application Kubernetes Secrets
+  hosts: masters
+  become: true
+  roles:
+    - role: app_secrets
+      tags: app_secrets
+
 - name: Creer le stockage
   hosts: masters
   become: true
@@ -68,12 +82,6 @@
   become: true
   roles:
     - nexus_proxy_tls
-
-- name: Installer Jenkins
-  hosts: tools
-  become: true
-  roles:
-    - jenkins
 
 - name: Construire et pousser l'image backend
   hosts: tools
@@ -110,3 +118,27 @@
   become: true
   roles:
     - app_ingress
+# ============================================================
+# 19. Installer Gitea sur tools
+#    Gitea : http://10.10.0.10:3000
+#    Admin : salhi
+# ============================================================
+- name: Installer Gitea
+  hosts: tools
+  become: true
+  roles:
+    - gitea
+
+
+# ============================================================
+# 20. Déployer Jenkins dans Kubernetes
+#    Namespace : cicd
+#    Stockage : /srv/nfs/jenkins
+#    Ingress : jenkins.local
+# ============================================================
+- name: Deployer Jenkins dans Kubernetes
+  hosts: masters
+  become: true
+  roles:
+    - jenkins
+

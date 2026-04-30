@@ -1,0 +1,26 @@
+---
+- name: Gitea | Vérifier que le conteneur est Running
+  command: docker ps --filter "name={{ gitea_container_name }}" --format '{{ "{{" }}.Status{{ "}}" }}'
+  register: gitea_status
+  changed_when: false
+  become: true
+
+- name: Gitea | Afficher l'état du conteneur
+  debug:
+    msg: "Etat du conteneur Gitea : {{ gitea_status.stdout }}"
+
+- name: Gitea | Tester l'accès HTTP
+  uri:
+    url: "{{ gitea_root_url }}"
+    method: GET
+    status_code: [200, 302]
+  register: gitea_final_check
+
+- name: Gitea | Afficher l'URL de connexion
+  debug:
+    msg:
+      - "Gitea est installé avec succès."
+      - "URL Web : {{ gitea_root_url }}"
+      - "Utilisateur admin : {{ gitea_admin_user }}"
+      - "Mot de passe admin : {{ gitea_admin_password }}"
+      - "Git SSH : ssh://git@{{ gitea_domain }}:{{ gitea_ssh_port }}/USER/REPO.git"

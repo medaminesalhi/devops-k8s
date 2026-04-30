@@ -1,0 +1,48 @@
+---
+- name: Jenkins K8s | Appliquer namespace
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/namespace.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer RBAC
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/rbac.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer PV
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/pv.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer PVC
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/pvc.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer Deployment
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/deployment.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer Service
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/service.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Appliquer Ingress
+  become: true
+  command: kubectl apply -f {{ jenkins_manifest_dir }}/ingress.yml
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"
+
+- name: Jenkins K8s | Attendre le déploiement Jenkins
+  become: true
+  command: kubectl rollout status deployment/{{ jenkins_deployment_name }} -n {{ jenkins_namespace }} --timeout=300s
+  environment:
+    KUBECONFIG: "{{ jenkins_kubeconfig }}"

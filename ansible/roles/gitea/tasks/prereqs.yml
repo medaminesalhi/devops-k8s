@@ -1,0 +1,18 @@
+---
+- name: Gitea | Vérifier que Docker est installé
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: Gitea | Afficher la version Docker
+  debug:
+    msg: "{{ docker_version.stdout }}"
+
+- name: Gitea | Créer le dossier de données persistant
+  file:
+    path: "{{ gitea_data_dir }}"
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0755"
+  become: true

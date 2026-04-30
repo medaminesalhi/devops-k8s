@@ -1,0 +1,6 @@
+---
+- name: Déployer l'Ingress final de l'application
+  hosts: masters
+  become: true
+  roles:
+    - app_ingress

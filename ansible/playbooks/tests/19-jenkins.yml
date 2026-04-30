@@ -1,0 +1,6 @@
+---
+- name: Déployer Jenkins dans Kubernetes
+  hosts: masters
+  become: true
+  roles:
+    - jenkins
