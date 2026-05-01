@@ -12,7 +12,7 @@ app.get("/health", async (req, res) => {
   try {
     const [rows] = await pool.query("SELECT 1 AS status");
     res.status(200).json({
-      message: "Backend is healthy",
+      message: "Backend is healthy tesst ci/cd amine",
       database: rows[0].status === 1 ? "connected" : "unknown"
     });
   } catch (error) {

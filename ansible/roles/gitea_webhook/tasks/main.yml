@@ -1,0 +1,76 @@
+---
+- name: Gitea Webhook | Validate required variables
+  assert:
+    that:
+      - gitea_url is defined
+      - gitea_owner is defined
+      - jenkins_url is defined
+      - gitea_webhooks is defined
+      - vault_gitea_api_token is defined
+      - vault_jenkins_webhook_user is defined
+      - vault_jenkins_webhook_api_token is defined
+    fail_msg: "Une ou plusieurs variables requises pour le rôle gitea_webhook sont absentes."
+    success_msg: "Variables gitea_webhook correctement définies."
+
+- name: Gitea Webhook | Get existing hooks for each repository
+  uri:
+    url: "{{ gitea_url }}/api/v1/repos/{{ gitea_owner }}/{{ item.repo }}/hooks"
+    method: GET
+    headers:
+      Authorization: "token {{ vault_gitea_api_token }}"
+    return_content: true
+    status_code: 200
+  loop: "{{ gitea_webhooks }}"
+  register: existing_hooks
+  no_log: true
+
+- name: Gitea Webhook | Delete existing hooks for managed repositories
+  uri:
+    url: "{{ gitea_url }}/api/v1/repos/{{ item.0.item.repo }}/hooks/{{ item.1.id }}"
+    method: DELETE
+    headers:
+      Authorization: "token {{ vault_gitea_api_token }}"
+    status_code:
+      - 204
+      - 404
+  loop: "{{ existing_hooks.results | subelements('json', skip_missing=True) }}"
+  no_log: true
+
+- name: Gitea Webhook | Create Jenkins webhook for each repository
+  uri:
+    url: "{{ gitea_url }}/api/v1/repos/{{ gitea_owner }}/{{ item.repo }}/hooks"
+    method: POST
+    headers:
+      Authorization: "token {{ vault_gitea_api_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      type: "gitea"
+      active: true
+      events:
+        - "push"
+      authorization_header: "Basic {{ (vault_jenkins_webhook_user ~ ':' ~ vault_jenkins_webhook_api_token) | b64encode }}"
+      config:
+        url: "{{ jenkins_url }}/job/{{ item.jenkins_job }}/build?token={{ item.token }}"
+        content_type: "json"
+    status_code:
+      - 201
+  loop: "{{ gitea_webhooks }}"
+  no_log: true
+
+- name: Gitea Webhook | Verify repository hooks
+  uri:
+    url: "{{ gitea_url }}/api/v1/repos/{{ gitea_owner }}/{{ item.repo }}/hooks"
+    method: GET
+    headers:
+      Authorization: "token {{ vault_gitea_api_token }}"
+    return_content: true
+    status_code: 200
+  loop: "{{ gitea_webhooks }}"
+  register: gitea_hooks_result
+  no_log: true
+
+- name: Gitea Webhook | Show webhook configuration result
+  debug:
+    msg: "Webhook Jenkins authentifié configuré pour le dépôt {{ item.repo }} vers {{ jenkins_url }}/job/{{ item.jenkins_job }}/build"
+  loop: "{{ gitea_webhooks }}"

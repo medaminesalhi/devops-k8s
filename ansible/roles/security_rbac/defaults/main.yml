@@ -1,0 +1,5 @@
+---
+ci_service_account_name: ci-deployer
+ci_role_name: app-deployer
+ci_rolebinding_name: ci-deployer-binding
+ci_kubeconfig_path: /home/vagrant/.kube/ci-deployer.conf

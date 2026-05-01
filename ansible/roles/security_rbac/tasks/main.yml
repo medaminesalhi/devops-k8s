@@ -1,0 +1,50 @@
+---
+- name: Security RBAC | Ensure application namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ app_namespace }}"
+        labels:
+          name: "{{ app_namespace }}"
+          managed-by: ansible
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Security RBAC | Apply CI deployer RBAC
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', role_path ~ '/templates/ci-rbac.yml.j2') | from_yaml_all }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Security RBAC | Verify CI deployer permissions
+  command: >
+    kubectl auth can-i patch deployment
+    -n {{ app_namespace }}
+    --as=system:serviceaccount:{{ app_namespace }}:{{ ci_service_account_name }}
+  register: ci_can_patch_deployment
+  changed_when: false
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Security RBAC | Show CI deployer permission result
+  debug:
+    msg: "ci-deployer can patch deployments in {{ app_namespace }}: {{ ci_can_patch_deployment.stdout }}"
+
+- name: Security RBAC | Verify CI deployer cannot read secrets
+  command: >
+    kubectl auth can-i get secrets
+    -n {{ app_namespace }}
+    --as=system:serviceaccount:{{ app_namespace }}:{{ ci_service_account_name }}
+  register: ci_can_get_secrets
+  changed_when: false
+  failed_when: ci_can_get_secrets.stdout != "no"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- name: Security RBAC | Show secret access result
+  debug:
+    msg: "ci-deployer can read secrets in {{ app_namespace }}: {{ ci_can_get_secrets.stdout }}"

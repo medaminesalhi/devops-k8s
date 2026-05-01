@@ -39,6 +39,13 @@
   roles:
     - labels
 
+- name: Configure Kubernetes RBAC security
+  hosts: masters
+  become: true
+  roles:
+    - role: security_rbac
+      tags: security_rbac
+
 - name: Installer ingress
   hosts: masters
   become: true
@@ -129,16 +136,36 @@
   roles:
     - gitea
 
-
-# ============================================================
-# 20. Déployer Jenkins dans Kubernetes
-#    Namespace : cicd
-#    Stockage : /srv/nfs/jenkins
-#    Ingress : jenkins.local
-# ============================================================
 - name: Deployer Jenkins dans Kubernetes
   hosts: masters
   become: true
   roles:
     - jenkins
 
+- name: Prepare Helm client on tools
+  hosts: tools
+  become: true
+  roles:
+    - role: helm_client
+      tags: helm_client
+
+- name: Installer Prometheus dans Kubernetes
+  hosts: tools
+  become: true
+  roles:
+    - role: prometheus
+      tags: prometheus
+
+- name: Installer Grafana dans Kubernetes
+  hosts: tools
+  become: true
+  roles:
+    - role: grafana
+      tags: grafana
+
+- name: Configure Gitea webhooks for Jenkins pipelines
+  hosts: tools
+  become: false
+  roles:
+    - role: gitea_webhook
+  tags: gitea_webhook

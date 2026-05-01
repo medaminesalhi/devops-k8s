@@ -1,0 +1,14 @@
+---
+gitea_url: "http://10.10.0.10:3000"
+gitea_owner: "salhi"
+
+jenkins_url: "http://jenkins.local:32254"
+
+gitea_webhooks:
+  - repo: "backend-students-app"
+    jenkins_job: "backend-pipeline"
+    token: "backend-token-123"
+
+  - repo: "frontend-students-app"
+    jenkins_job: "frontend-pipeline"
+    token: "frontend-token-123"

@@ -1,2 +1,18 @@
 ---
-# defaults file for grafana
+monitoring_namespace: monitoring
+
+grafana_chart_repo_name: grafana
+grafana_chart_repo_url: https://grafana.github.io/helm-charts
+
+grafana_release_name: grafana
+grafana_chart_name: grafana/grafana
+
+grafana_admin_user: admin
+grafana_admin_password: admin123
+
+grafana_hostname: grafana.local
+
+grafana_values_dest: /tmp/grafana-values.yml
+
+prometheus_datasource_name: Prometheus
+prometheus_datasource_url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090

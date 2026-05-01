@@ -1,0 +1,6 @@
+---
+- name: Test Grafana installation from tools
+  hosts: tools
+  become: yes
+  roles:
+    - grafana

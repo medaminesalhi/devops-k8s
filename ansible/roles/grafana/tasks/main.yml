@@ -1,2 +1,130 @@
 ---
-# tasks file for grafana
+- name: Verify kubectl access from tools
+  command: kubectl get nodes
+  become_user: vagrant
+  register: grafana_kubectl_nodes
+  changed_when: false
+  tags:
+    - grafana
+
+- name: Display Kubernetes nodes before Grafana installation
+  debug:
+    var: grafana_kubectl_nodes.stdout_lines
+  tags:
+    - grafana
+
+- name: Verify Helm is installed on tools
+  command: helm version --short
+  become_user: vagrant
+  register: grafana_helm_version
+  changed_when: false
+  tags:
+    - grafana
+
+- name: Display Helm version
+  debug:
+    var: grafana_helm_version.stdout
+  tags:
+    - grafana
+
+- name: Ensure monitoring namespace exists
+  command: kubectl create namespace {{ monitoring_namespace }}
+  become_user: vagrant
+  register: grafana_namespace_create
+  changed_when: "'created' in grafana_namespace_create.stdout"
+  failed_when:
+    - grafana_namespace_create.rc != 0
+    - "'AlreadyExists' not in grafana_namespace_create.stderr"
+  tags:
+    - grafana
+
+- name: Add Grafana Helm repository
+  command: helm repo add {{ grafana_chart_repo_name }} {{ grafana_chart_repo_url }}
+  become_user: vagrant
+  register: grafana_repo_add
+  changed_when: "'has been added' in grafana_repo_add.stdout"
+  failed_when:
+    - grafana_repo_add.rc != 0
+    - "'already exists' not in grafana_repo_add.stderr"
+  tags:
+    - grafana
+
+- name: Update Helm repositories
+  command: helm repo update
+  become_user: vagrant
+  changed_when: false
+  tags:
+    - grafana
+
+- name: Render Grafana values file
+  template:
+    src: grafana-values.yml.j2
+    dest: "{{ grafana_values_dest }}"
+    owner: vagrant
+    group: vagrant
+    mode: "0644"
+  tags:
+    - grafana
+
+- name: Install or upgrade Grafana
+  command: >
+    helm upgrade --install {{ grafana_release_name }} {{ grafana_chart_name }}
+    --namespace {{ monitoring_namespace }}
+    --values {{ grafana_values_dest }}
+    --wait
+    --timeout 10m
+  become_user: vagrant
+  register: grafana_helm_install
+  changed_when:
+    - "'deployed' in grafana_helm_install.stdout or 'upgraded' in grafana_helm_install.stdout or 'Release' in grafana_helm_install.stdout"
+  tags:
+    - grafana
+
+- name: Display Grafana Helm output
+  debug:
+    var: grafana_helm_install.stdout_lines
+  tags:
+    - grafana
+
+- name: Show Grafana pods
+  command: kubectl get pods -n {{ monitoring_namespace }} -l app.kubernetes.io/name=grafana -o wide
+  become_user: vagrant
+  register: grafana_pods
+  changed_when: false
+  tags:
+    - grafana
+
+- name: Display Grafana pods
+  debug:
+    var: grafana_pods.stdout_lines
+  tags:
+    - grafana
+
+- name: Show Grafana service
+  command: kubectl get svc -n {{ monitoring_namespace }} {{ grafana_release_name }}
+  become_user: vagrant
+  register: grafana_service
+  changed_when: false
+  failed_when: false
+  tags:
+    - grafana
+
+- name: Display Grafana service
+  debug:
+    var: grafana_service.stdout_lines
+  tags:
+    - grafana
+
+- name: Show Grafana ingress
+  command: kubectl get ingress -n {{ monitoring_namespace }}
+  become_user: vagrant
+  register: grafana_ingress
+  changed_when: false
+  tags:
+    - grafana
+
+- name: Display Grafana ingress
+  debug:
+    var: grafana_ingress.stdout_lines
+  tags:
+    - grafana
