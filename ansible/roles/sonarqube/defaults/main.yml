@@ -1,0 +1,7 @@
+---
+sonarqube_container_name: sonarqube
+sonarqube_image: sonarqube:community
+sonarqube_http_port: 9000
+sonarqube_data_volume: sonarqube_data
+sonarqube_extensions_volume: sonarqube_extensions
+sonarqube_logs_volume: sonarqube_logs

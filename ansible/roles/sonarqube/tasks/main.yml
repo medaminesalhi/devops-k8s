@@ -1,0 +1,78 @@
+---
+- name: SonarQube | Install required packages
+  apt:
+    name:
+      - curl
+    state: present
+    update_cache: yes
+  become: true
+
+- name: SonarQube | Check Docker is installed
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: SonarQube | Show Docker version
+  debug:
+    msg: "{{ docker_version.stdout }}"
+
+- name: SonarQube | Ensure Docker service is running
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  become: true
+
+- name: SonarQube | Configure vm.max_map_count for Elasticsearch
+  sysctl:
+    name: vm.max_map_count
+    value: "262144"
+    state: present
+    reload: yes
+  become: true
+
+- name: SonarQube | Create Docker volume for data
+  command: docker volume create {{ sonarqube_data_volume }}
+  changed_when: false
+
+- name: SonarQube | Create Docker volume for extensions
+  command: docker volume create {{ sonarqube_extensions_volume }}
+  changed_when: false
+
+- name: SonarQube | Create Docker volume for logs
+  command: docker volume create {{ sonarqube_logs_volume }}
+  changed_when: false
+
+- name: SonarQube | Pull SonarQube image
+  command: docker pull {{ sonarqube_image }}
+  changed_when: false
+
+- name: SonarQube | Remove old container if exists
+  command: docker rm -f {{ sonarqube_container_name }}
+  failed_when: false
+  changed_when: false
+
+- name: SonarQube | Start SonarQube container
+  command: >
+    docker run -d
+    --name {{ sonarqube_container_name }}
+    --restart unless-stopped
+    -p {{ sonarqube_http_port }}:9000
+    -v {{ sonarqube_data_volume }}:/opt/sonarqube/data
+    -v {{ sonarqube_extensions_volume }}:/opt/sonarqube/extensions
+    -v {{ sonarqube_logs_volume }}:/opt/sonarqube/logs
+    {{ sonarqube_image }}
+
+- name: SonarQube | Wait for SonarQube to start
+  uri:
+    url: "http://127.0.0.1:{{ sonarqube_http_port }}"
+    method: GET
+    status_code: [200, 302, 401]
+  register: sonarqube_health
+  retries: 40
+  delay: 10
+  until: sonarqube_health.status in [200, 302, 401]
+
+- name: SonarQube | Show access URL
+  debug:
+    msg: "SonarQube is available at http://10.10.0.10:{{ sonarqube_http_port }}"

@@ -1,0 +1,21 @@
+---
+jenkins_url: "http://10.10.0.22:32254"
+jenkins_host_header: "jenkins.local"
+
+jenkins_seed_job_name: "seed-job"
+
+gitea_url: "http://10.10.0.10:3000"
+gitea_owner: "salhi"
+
+jenkins_jobs_to_create:
+  - name: "backend-auto-pipeline"
+    repo: "backend-students-app"
+    branch: "main"
+    jenkinsfile: "Jenkinsfile"
+    token: "backend-auto-token-123"
+
+  - name: "frontend-auto-pipeline"
+    repo: "frontend-students-app"
+    branch: "main"
+    jenkinsfile: "Jenkinsfile"
+    token: "frontend-auto-token-123"

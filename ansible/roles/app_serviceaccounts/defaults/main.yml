@@ -1,0 +1,10 @@
+---
+app_serviceaccounts_namespace: "{{ app_namespace | default('project') }}"
+
+backend_serviceaccount_name: backend-sa
+frontend_serviceaccount_name: frontend-sa
+mysql_serviceaccount_name: mysql-sa
+
+backend_deployment_name: backend
+frontend_deployment_name: frontend
+mysql_deployment_name: mysql

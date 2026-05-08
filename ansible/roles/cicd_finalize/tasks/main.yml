@@ -1,0 +1,151 @@
+---
+- name: CI/CD Finalize | Verify Gitea container exists
+  command: docker ps --format '{% raw %}{{.Names}}{% endraw %}'
+  register: docker_running_containers
+  changed_when: false
+
+- name: CI/CD Finalize | Ensure Gitea container is running
+  assert:
+    that:
+      - gitea_container_name in docker_running_containers.stdout_lines
+    fail_msg: "Le conteneur Gitea '{{ gitea_container_name }}' n'est pas démarré."
+    success_msg: "Le conteneur Gitea est démarré."
+
+- name: CI/CD Finalize | Add Jenkins hostname to Gitea container hosts file
+  command: >
+    docker exec -u root {{ gitea_container_name }}
+    sh -c "grep -q '{{ jenkins_ingress_ip }}.*{{ jenkins_hostname }}' /etc/hosts
+    || echo '{{ jenkins_ingress_ip }} {{ jenkins_hostname }}' >> /etc/hosts"
+  changed_when: false
+
+- name: CI/CD Finalize | Verify Jenkins hostname resolution inside Gitea container
+  command: docker exec {{ gitea_container_name }} getent hosts {{ jenkins_hostname }}
+  register: gitea_jenkins_hosts
+  changed_when: false
+
+- name: CI/CD Finalize | Show Gitea Jenkins hostname resolution
+  debug:
+    msg: "{{ gitea_jenkins_hosts.stdout }}"
+
+- name: CI/CD Finalize | Ensure webhook section exists in Gitea app.ini
+  command: >
+    docker exec {{ gitea_container_name }}
+    sh -c "grep -q '^\[webhook\]' /data/gitea/conf/app.ini
+    || printf '\n[webhook]\n' >> /data/gitea/conf/app.ini"
+  changed_when: false
+
+- name: CI/CD Finalize | Configure Gitea webhook allowed host list
+  command: >
+    docker exec {{ gitea_container_name }}
+    sh -c "grep -q '^ALLOWED_HOST_LIST' /data/gitea/conf/app.ini
+    && sed -i 's|^ALLOWED_HOST_LIST.*|ALLOWED_HOST_LIST = {{ gitea_allowed_webhook_hosts }}|' /data/gitea/conf/app.ini
+    || sed -i '/^\[webhook\]/a ALLOWED_HOST_LIST = {{ gitea_allowed_webhook_hosts }}' /data/gitea/conf/app.ini"
+  changed_when: false
+
+- name: CI/CD Finalize | Restart Gitea container to apply app.ini changes
+  command: docker restart {{ gitea_container_name }}
+  changed_when: false
+
+- name: CI/CD Finalize | Wait for Gitea to come back
+  uri:
+    url: "http://127.0.0.1:3000"
+    method: GET
+    status_code:
+      - 200
+      - 302
+    timeout: 5
+  register: gitea_wait
+  retries: 20
+  delay: 3
+  until: gitea_wait.status in [200, 302]
+
+- name: CI/CD Finalize | Re-add Jenkins hostname after Gitea restart
+  command: >
+    docker exec -u root {{ gitea_container_name }}
+    sh -c "grep -q '{{ jenkins_ingress_ip }}.*{{ jenkins_hostname }}' /etc/hosts
+    || echo '{{ jenkins_ingress_ip }} {{ jenkins_hostname }}' >> /etc/hosts"
+  changed_when: false
+
+- name: CI/CD Finalize | Verify Gitea webhook configuration
+  command: docker exec {{ gitea_container_name }} grep -A 5 '^\[webhook\]' /data/gitea/conf/app.ini
+  register: gitea_webhook_config
+  changed_when: false
+
+- name: CI/CD Finalize | Show Gitea webhook configuration
+  debug:
+    msg: "{{ gitea_webhook_config.stdout_lines }}"
+
+- name: CI/CD Finalize | Wait for Jenkins pod to be ready
+  command: >
+    kubectl wait --for=condition=ready pod
+    -l {{ jenkins_app_label }}
+    -n {{ cicd_namespace }}
+    --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  changed_when: false
+
+- name: CI/CD Finalize | Fix Jenkins SSH directory permissions
+  command: >
+    kubectl exec -n {{ cicd_namespace }} deployment/jenkins
+    -- chmod 700 /var/jenkins_home/.ssh
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: CI/CD Finalize | Fix Jenkins private key permissions
+  command: >
+    kubectl exec -n {{ cicd_namespace }} deployment/jenkins
+    -- chmod 600 /var/jenkins_home/.ssh/id_ed25519
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: CI/CD Finalize | Fix Jenkins public key permissions
+  command: >
+    kubectl exec -n {{ cicd_namespace }} deployment/jenkins
+    -- chmod 644 /var/jenkins_home/.ssh/id_ed25519.pub
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: CI/CD Finalize | Verify Jenkins SSH key permissions
+  command: >
+    kubectl exec -n {{ cicd_namespace }} deployment/jenkins
+    -- ls -ld /var/jenkins_home/.ssh /var/jenkins_home/.ssh/id_ed25519
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  register: jenkins_ssh_permissions
+  changed_when: false
+
+- name: CI/CD Finalize | Show Jenkins SSH key permissions
+  debug:
+    msg: "{{ jenkins_ssh_permissions.stdout_lines }}"
+
+- name: CI/CD Finalize | Test SSH connection from Jenkins to tools
+  command: >
+    kubectl exec -n {{ cicd_namespace }} deployment/jenkins
+    -- ssh -o StrictHostKeyChecking=no {{ tools_user }}@{{ tools_host }} "hostname && whoami"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  delegate_to: master1
+  become: true
+  register: jenkins_ssh_test
+  changed_when: false
+
+- name: CI/CD Finalize | Show Jenkins SSH test result
+  debug:
+    msg: "{{ jenkins_ssh_test.stdout_lines }}"

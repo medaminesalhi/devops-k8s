@@ -1,2 +1,11 @@
 ---
-# defaults file for loki
+loki_namespace: monitoring
+loki_nfs_server: "10.10.0.10"
+loki_nfs_path: "/srv/nfs/loki"
+loki_pv_name: "loki-pv"
+loki_storage_class: "loki-nfs"
+loki_storage_size: "10Gi"
+loki_release_name: "loki"
+promtail_release_name: "promtail"
+
+kubeconfig_path: "/home/vagrant/.kube/config"

@@ -1,0 +1,80 @@
+---
+- name: Cosign | Install required packages
+  apt:
+    name:
+      - curl
+      - ca-certificates
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Cosign | Check if cosign is already installed
+  command: "{{ cosign_install_path }} version"
+  register: cosign_existing_version
+  failed_when: false
+  changed_when: false
+
+- name: Cosign | Download cosign binary
+  get_url:
+    url: "https://github.com/sigstore/cosign/releases/download/{{ cosign_version }}/cosign-linux-{{ cosign_arch }}"
+    dest: "{{ cosign_install_path }}"
+    mode: "0755"
+  become: true
+  when: cosign_existing_version.rc != 0
+
+- name: Cosign | Verify cosign installation
+  command: "{{ cosign_install_path }} version"
+  register: cosign_version_output
+  changed_when: false
+
+- name: Cosign | Show cosign version
+  debug:
+    msg: "{{ cosign_version_output.stdout_lines }}"
+
+- name: Cosign | Create cosign key directory
+  file:
+    path: "{{ cosign_key_dir }}"
+    state: directory
+    owner: "{{ cosign_owner }}"
+    group: "{{ cosign_group }}"
+    mode: "0700"
+  become: true
+
+- name: Cosign | Check if cosign private key exists
+  stat:
+    path: "{{ cosign_private_key_path }}"
+  register: cosign_private_key_stat
+
+- name: Cosign | Check if cosign public key exists
+  stat:
+    path: "{{ cosign_public_key_path }}"
+  register: cosign_public_key_stat
+
+- name: Cosign | Show key generation instructions if keys are missing
+  debug:
+    msg:
+      - "Cosign is installed."
+      - "Cosign key pair is missing."
+      - "Generate it manually on tools with:"
+      - "cd {{ cosign_key_dir }}"
+      - "cosign generate-key-pair"
+      - "Then store cosign.key and the password in Jenkins Credentials."
+  when: not cosign_private_key_stat.stat.exists or not cosign_public_key_stat.stat.exists
+
+- name: Cosign | Secure cosign private key permissions
+  file:
+    path: "{{ cosign_private_key_path }}"
+    owner: "{{ cosign_owner }}"
+    group: "{{ cosign_group }}"
+    mode: "0600"
+  become: true
+  when: cosign_private_key_stat.stat.exists
+
+- name: Cosign | Secure cosign public key permissions
+  file:
+    path: "{{ cosign_public_key_path }}"
+    owner: "{{ cosign_owner }}"
+    group: "{{ cosign_group }}"
+    mode: "0644"
+  become: true
+  when: cosign_public_key_stat.stat.exists

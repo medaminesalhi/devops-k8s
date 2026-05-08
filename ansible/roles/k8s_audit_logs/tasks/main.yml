@@ -1,0 +1,188 @@
+---
+# ============================================================
+# Rôle : k8s_audit_logs
+# Objectif :
+# Activer les audit logs Kubernetes sur le kube-apiserver
+# ============================================================
+
+- name: Audit Logs | Install python3-yaml
+  apt:
+    name: python3-yaml
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Audit Logs | Ensure audit log directory exists
+  file:
+    path: "{{ audit_log_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Audit Logs | Deploy audit policy file
+  template:
+    src: audit-policy.yaml.j2
+    dest: "{{ audit_policy_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Audit Logs | Backup kube-apiserver manifest if not already backed up
+  copy:
+    src: "{{ kube_apiserver_manifest }}"
+    dest: "{{ kube_apiserver_backup }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  become: true
+
+- name: Audit Logs | Deploy kube-apiserver audit patch script
+  copy:
+    dest: /tmp/enable_k8s_audit.py
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/usr/bin/env python3
+      import sys
+      import yaml
+
+      manifest_path = "{{ kube_apiserver_manifest }}"
+
+      audit_policy_path = "{{ audit_policy_path }}"
+      audit_log_dir = "{{ audit_log_dir }}"
+      audit_log_path = "{{ audit_log_path }}"
+
+      audit_log_maxage = "{{ audit_log_maxage }}"
+      audit_log_maxbackup = "{{ audit_log_maxbackup }}"
+      audit_log_maxsize = "{{ audit_log_maxsize }}"
+
+      with open(manifest_path, "r") as f:
+          data = yaml.safe_load(f)
+
+      spec = data.setdefault("spec", {})
+      containers = spec.setdefault("containers", [])
+
+      if not containers:
+          print("ERROR: No containers found in kube-apiserver manifest")
+          sys.exit(1)
+
+      container = None
+      for c in containers:
+          if c.get("name") == "kube-apiserver":
+              container = c
+              break
+
+      if container is None:
+          container = containers[0]
+
+      command = container.setdefault("command", [])
+
+      flags_to_add = [
+          f"--audit-policy-file={audit_policy_path}",
+          f"--audit-log-path={audit_log_path}",
+          f"--audit-log-maxage={audit_log_maxage}",
+          f"--audit-log-maxbackup={audit_log_maxbackup}",
+          f"--audit-log-maxsize={audit_log_maxsize}",
+      ]
+
+      for flag in flags_to_add:
+          key = flag.split("=")[0]
+          exists = any(str(item).startswith(key + "=") or str(item) == key for item in command)
+          if not exists:
+              command.append(flag)
+
+      volume_mounts = container.setdefault("volumeMounts", [])
+
+      def ensure_volume_mount(name, mount_path, read_only=None):
+          for vm in volume_mounts:
+              if vm.get("name") == name:
+                  return
+          item = {
+              "name": name,
+              "mountPath": mount_path,
+          }
+          if read_only is not None:
+              item["readOnly"] = read_only
+          volume_mounts.append(item)
+
+      ensure_volume_mount("audit-policy", audit_policy_path, True)
+      ensure_volume_mount("audit-log", audit_log_dir, None)
+
+      volumes = spec.setdefault("volumes", [])
+
+      def ensure_hostpath_volume(name, path, hostpath_type):
+          for v in volumes:
+              if v.get("name") == name:
+                  return
+          volumes.append({
+              "name": name,
+              "hostPath": {
+                  "path": path,
+                  "type": hostpath_type,
+              }
+          })
+
+      ensure_hostpath_volume("audit-policy", audit_policy_path, "File")
+      ensure_hostpath_volume("audit-log", audit_log_dir, "DirectoryOrCreate")
+
+      with open(manifest_path, "w") as f:
+          yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+
+      print("kube-apiserver manifest updated successfully")
+  become: true
+
+- name: Audit Logs | Patch kube-apiserver manifest
+  command: python3 /tmp/enable_k8s_audit.py
+  become: true
+  register: audit_patch_result
+  changed_when: "'updated successfully' in audit_patch_result.stdout"
+
+- name: Audit Logs | Show patch result
+  debug:
+    var: audit_patch_result.stdout_lines
+
+- name: Audit Logs | Wait for kube-apiserver to become available
+  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf get nodes
+  register: audit_kubectl_nodes
+  retries: 40
+  delay: 10
+  until: audit_kubectl_nodes.rc == 0
+  changed_when: false
+  become: true
+
+- name: Audit Logs | Generate a test audit event
+  command: kubectl --kubeconfig=/etc/kubernetes/admin.conf get pods -A
+  changed_when: false
+  become: true
+
+- name: Audit Logs | Wait for audit log file to be created
+  wait_for:
+    path: "{{ audit_log_path }}"
+    timeout: 180
+  become: true
+
+- name: Audit Logs | Show audit log file
+  command: ls -lh "{{ audit_log_path }}"
+  register: audit_log_file_info
+  changed_when: false
+  become: true
+
+- name: Audit Logs | Display audit log file info
+  debug:
+    var: audit_log_file_info.stdout_lines
+
+- name: Audit Logs | Show last audit log lines
+  command: tail -n 5 "{{ audit_log_path }}"
+  register: audit_log_tail
+  changed_when: false
+  become: true
+
+- name: Audit Logs | Display audit log sample
+  debug:
+    var: audit_log_tail.stdout_lines

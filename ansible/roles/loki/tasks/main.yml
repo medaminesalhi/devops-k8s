@@ -1,2 +1,273 @@
 ---
-# tasks file for loki
+# ============================================================
+# Rôle : loki
+# Objectif :
+# - Préparer un stockage NFS persistant pour Loki
+# - Créer le PV Kubernetes
+# - Installer Loki via Helm
+# - Installer Promtail via Helm
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Préparation du stockage NFS sur tools
+# ------------------------------------------------------------
+
+- name: Loki | Ensure NFS directory exists
+  file:
+    path: "{{ loki_nfs_path }}"
+    state: directory
+    owner: "10001"
+    group: "10001"
+    mode: "0777"
+  become: true
+
+- name: Loki | Ensure NFS export exists
+  lineinfile:
+    path: /etc/exports
+    line: "{{ loki_nfs_path }} 10.10.0.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)"
+    state: present
+    create: yes
+  become: true
+
+- name: Loki | Reload NFS exports
+  command: exportfs -ra
+  become: true
+  changed_when: false
+
+- name: Loki | Restart NFS server
+  systemd:
+    name: nfs-kernel-server
+    state: restarted
+    enabled: true
+  become: true
+
+
+# ------------------------------------------------------------
+# 2. Dépendances Python nécessaires aux modules Kubernetes Ansible
+# ------------------------------------------------------------
+
+- name: Loki | Install Python pip
+  apt:
+    name: python3-pip
+    state: present
+    update_cache: yes
+  become: true
+
+- name: Loki | Install Python Kubernetes client
+  pip:
+    name: kubernetes
+    state: present
+    executable: pip3
+  become: true
+
+- name: Loki | Verify Python Kubernetes client
+  command: python3 -c "import kubernetes; print(kubernetes.__version__)"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 3. Vérification du kubeconfig
+# ------------------------------------------------------------
+
+- name: Loki | Verify kubeconfig exists
+  stat:
+    path: "{{ kubeconfig_path }}"
+  register: loki_kubeconfig_file
+  become: false
+
+- name: Loki | Fail if kubeconfig does not exist
+  fail:
+    msg: "Le fichier kubeconfig {{ kubeconfig_path }} est introuvable. Vérifie que kubectl est configuré sur tools."
+  when: not loki_kubeconfig_file.stat.exists
+
+- name: Loki | Verify Kubernetes access
+  command: kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 4. Repository Helm Grafana
+# ------------------------------------------------------------
+
+- name: Loki | Add Grafana Helm repository
+  kubernetes.core.helm_repository:
+    name: grafana
+    repo_url: https://grafana.github.io/helm-charts
+  become: false
+
+- name: Loki | Update Helm repositories
+  command: helm repo update
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 5. Namespace monitoring
+# ------------------------------------------------------------
+
+- name: Loki | Ensure monitoring namespace exists
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ loki_namespace }}"
+  become: false
+
+
+# ------------------------------------------------------------
+# 6. Nettoyage de l’ancien Loki bloqué, si présent
+# ------------------------------------------------------------
+
+- name: Loki | Check existing Loki release
+  command: helm status {{ loki_release_name }} -n {{ loki_namespace }}
+  register: loki_existing_release
+  failed_when: false
+  changed_when: false
+  become: false
+
+- name: Loki | Uninstall existing Loki release
+  command: helm uninstall {{ loki_release_name }} -n {{ loki_namespace }}
+  when: loki_existing_release.rc == 0
+  failed_when: false
+  changed_when: true
+  become: false
+
+- name: Loki | Delete old Loki PVC if it exists
+  command: kubectl delete pvc storage-loki-0 -n {{ loki_namespace }} --ignore-not-found
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  failed_when: false
+  changed_when: false
+  become: false
+
+- name: Loki | Wait a few seconds after cleanup
+  pause:
+    seconds: 10
+  when: loki_existing_release.rc == 0
+
+
+# ------------------------------------------------------------
+# 7. Création du PersistentVolume Loki
+# ------------------------------------------------------------
+
+- name: Loki | Create Loki PersistentVolume
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition: "{{ lookup('template', role_path ~ '/templates/loki-pv.yml.j2') | from_yaml }}"
+  become: false
+
+- name: Loki | Verify Loki PersistentVolume
+  command: kubectl get pv {{ loki_pv_name }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 8. Génération du fichier values Helm pour Loki
+# ------------------------------------------------------------
+
+- name: Loki | Render Loki values file
+  template:
+    src: loki-values.yml.j2
+    dest: /tmp/loki-values.yml
+    mode: "0644"
+  become: false
+
+
+# ------------------------------------------------------------
+# 9. Installation de Loki avec stockage persistant NFS
+# ------------------------------------------------------------
+
+- name: Loki | Install or upgrade Loki
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ loki_release_name }}"
+    chart_ref: grafana/loki
+    release_namespace: "{{ loki_namespace }}"
+    create_namespace: true
+    values_files:
+      - /tmp/loki-values.yml
+  become: false
+
+- name: Loki | Wait for Loki pod to be created
+  command: kubectl get pod loki-0 -n {{ loki_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: loki_pod_created
+  retries: 20
+  delay: 10
+  until: loki_pod_created.rc == 0
+  changed_when: false
+  become: false
+
+- name: Loki | Wait for Loki pod to be ready
+  command: kubectl wait --for=condition=Ready pod/loki-0 -n {{ loki_namespace }} --timeout=300s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 10. Installation de Promtail
+# ------------------------------------------------------------
+
+- name: Loki | Install or upgrade Promtail
+  kubernetes.core.helm:
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ promtail_release_name }}"
+    chart_ref: grafana/promtail
+    release_namespace: "{{ loki_namespace }}"
+    create_namespace: true
+    values:
+      config:
+        clients:
+          - url: "http://loki-gateway.{{ loki_namespace }}.svc.cluster.local/loki/api/v1/push"
+  become: false
+
+- name: Loki | Wait for Promtail DaemonSet rollout
+  command: kubectl rollout status daemonset/{{ promtail_release_name }} -n {{ loki_namespace }} --timeout=300s
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 11. Vérifications finales
+# ------------------------------------------------------------
+
+- name: Loki | Verify Loki PVC
+  command: kubectl get pvc -n {{ loki_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Loki | Verify Loki and Promtail pods
+  command: kubectl get pods -n {{ loki_namespace }} -o wide
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Loki | Verify Promtail DaemonSet
+  command: kubectl get daemonset -n {{ loki_namespace }} {{ promtail_release_name }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Loki | Show Grafana datasource URL
+  debug:
+    msg: "Loki est accessible depuis Grafana avec l'URL : http://loki-gateway.{{ loki_namespace }}.svc.cluster.local/"

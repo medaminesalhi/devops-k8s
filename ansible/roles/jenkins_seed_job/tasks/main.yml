@@ -1,0 +1,98 @@
+---
+- name: Jenkins Seed Job | Validate required variables
+  assert:
+    that:
+      - jenkins_url is defined
+      - jenkins_host_header is defined
+      - jenkins_seed_job_name is defined
+      - vault_jenkins_webhook_user is defined
+      - vault_jenkins_webhook_api_token is defined
+      - gitea_url is defined
+      - gitea_owner is defined
+      - jenkins_jobs_to_create is defined
+    fail_msg: "Variables manquantes pour créer le seed job Jenkins."
+    success_msg: "Variables Jenkins seed job OK."
+
+- name: Jenkins Seed Job | Render seed job config
+  template:
+    src: seed-job-config.xml.j2
+    dest: /tmp/seed-job-config.xml
+    mode: "0644"
+
+- name: Jenkins Seed Job | Get Jenkins crumb
+  uri:
+    url: "{{ jenkins_url }}/crumbIssuer/api/json"
+    method: GET
+    user: "{{ vault_jenkins_webhook_user }}"
+    password: "{{ vault_jenkins_webhook_api_token }}"
+    force_basic_auth: true
+    headers:
+      Host: "{{ jenkins_host_header }}"
+    return_content: true
+    status_code: 200
+  register: jenkins_crumb
+
+- name: Jenkins Seed Job | Check if seed job exists
+  uri:
+    url: "{{ jenkins_url }}/job/{{ jenkins_seed_job_name }}/api/json"
+    method: GET
+    user: "{{ vault_jenkins_webhook_user }}"
+    password: "{{ vault_jenkins_webhook_api_token }}"
+    force_basic_auth: true
+    headers:
+      Host: "{{ jenkins_host_header }}"
+    status_code:
+      - 200
+      - 404
+  register: seed_job_check
+
+- name: Jenkins Seed Job | Create seed job if missing
+  uri:
+    url: "{{ jenkins_url }}/createItem?name={{ jenkins_seed_job_name }}"
+    method: POST
+    user: "{{ vault_jenkins_webhook_user }}"
+    password: "{{ vault_jenkins_webhook_api_token }}"
+    force_basic_auth: true
+    headers:
+      Host: "{{ jenkins_host_header }}"
+      Content-Type: "application/xml"
+      Jenkins-Crumb: "{{ jenkins_crumb.json.crumb }}"
+    body: "{{ lookup('file', '/tmp/seed-job-config.xml') }}"
+    status_code:
+      - 200
+      - 201
+      - 302
+  when: seed_job_check.status == 404
+
+- name: Jenkins Seed Job | Update seed job if already exists
+  uri:
+    url: "{{ jenkins_url }}/job/{{ jenkins_seed_job_name }}/config.xml"
+    method: POST
+    user: "{{ vault_jenkins_webhook_user }}"
+    password: "{{ vault_jenkins_webhook_api_token }}"
+    force_basic_auth: true
+    headers:
+      Host: "{{ jenkins_host_header }}"
+      Content-Type: "application/xml"
+      Jenkins-Crumb: "{{ jenkins_crumb.json.crumb }}"
+    body: "{{ lookup('file', '/tmp/seed-job-config.xml') }}"
+    status_code:
+      - 200
+      - 201
+      - 302
+  when: seed_job_check.status == 200
+
+- name: Jenkins Seed Job | Trigger seed job
+  uri:
+    url: "{{ jenkins_url }}/job/{{ jenkins_seed_job_name }}/build"
+    method: POST
+    user: "{{ vault_jenkins_webhook_user }}"
+    password: "{{ vault_jenkins_webhook_api_token }}"
+    force_basic_auth: true
+    headers:
+      Host: "{{ jenkins_host_header }}"
+      Jenkins-Crumb: "{{ jenkins_crumb.json.crumb }}"
+    status_code:
+      - 200
+      - 201
+      - 302

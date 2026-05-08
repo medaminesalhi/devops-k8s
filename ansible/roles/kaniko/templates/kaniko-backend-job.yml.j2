@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kaniko-backend-build
+  namespace: {{ kaniko_namespace }}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ kaniko_service_account }}
+
+      containers:
+        - name: kaniko
+          image: {{ kaniko_executor_image }}
+          args:
+            - "--dockerfile=/workspace/Dockerfile"
+            - "--context=dir:///workspace"
+            - "--destination={{ kaniko_registry }}/{{ kaniko_backend_image_name }}:{{ kaniko_image_tag }}"
+            - "--cache=true"
+            - "--skip-tls-verify=false"
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: docker-config
+              mountPath: /kaniko/.docker
+            - name: nexus-ca
+              mountPath: /kaniko/ssl/certs/ca.crt
+              subPath: ca.crt
+
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ kaniko_backend_pvc_name }}
+
+        - name: docker-config
+          secret:
+            secretName: {{ kaniko_registry_secret_name }}
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+
+        - name: nexus-ca
+          secret:
+            secretName: {{ kaniko_ca_secret_name }}

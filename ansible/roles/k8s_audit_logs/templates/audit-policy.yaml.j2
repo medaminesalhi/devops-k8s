@@ -1,0 +1,61 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+
+rules:
+  # Ne pas logger les checks internes trop fréquents
+  - level: None
+    nonResourceURLs:
+      - /healthz*
+      - /livez*
+      - /readyz*
+      - /version
+
+  # Logger les accès aux Secrets
+  - level: Metadata
+    resources:
+      - group: ""
+        resources:
+          - secrets
+
+  # Logger les modifications RBAC
+  - level: RequestResponse
+    resources:
+      - group: "rbac.authorization.k8s.io"
+        resources:
+          - roles
+          - rolebindings
+          - clusterroles
+          - clusterrolebindings
+
+  # Logger les modifications des workloads applicatifs
+  - level: RequestResponse
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+    resources:
+      - group: "apps"
+        resources:
+          - deployments
+          - replicasets
+          - statefulsets
+          - daemonsets
+
+  # Logger les modifications des pods et services
+  - level: Request
+    verbs:
+      - create
+      - update
+      - patch
+      - delete
+    resources:
+      - group: ""
+        resources:
+          - pods
+          - services
+          - configmaps
+          - persistentvolumeclaims
+
+  # Logger les accès généraux en Metadata seulement
+  - level: Metadata

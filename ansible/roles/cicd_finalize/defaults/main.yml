@@ -1,0 +1,14 @@
+---
+cicd_namespace: "cicd"
+jenkins_app_label: "app=jenkins"
+
+gitea_container_name: "gitea"
+
+jenkins_hostname: "jenkins.local"
+jenkins_ingress_ip: "10.10.0.22"
+jenkins_ingress_port: "32254"
+
+tools_host: "10.10.0.10"
+tools_user: "vagrant"
+
+gitea_allowed_webhook_hosts: "private,loopback,jenkins.local,10.10.0.22"

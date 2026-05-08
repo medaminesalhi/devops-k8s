@@ -1,0 +1,22 @@
+{% for job in jenkins_jobs_to_create %}
+pipelineJob('{{ job.name }}') {
+    description('Pipeline generated automatically by Ansible seed-job using Job DSL')
+
+    authenticationToken('{{ job.token }}')
+
+    definition {
+        cpsScm {
+            scm {
+                git {
+                    remote {
+                        url('{{ gitea_url }}/{{ gitea_owner }}/{{ job.repo }}.git')
+                    }
+                    branches('*/{{ job.branch }}')
+                }
+            }
+            scriptPath('{{ job.jenkinsfile }}')
+            lightweight(true)
+        }
+    }
+}
+{% endfor %}

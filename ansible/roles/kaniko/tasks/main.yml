@@ -1,0 +1,288 @@
+---
+# ============================================================
+# Rôle : kaniko
+# Objectif :
+# Préparer Kaniko pour construire les images Docker dans Kubernetes
+# sans Docker daemon.
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Vérification kubeconfig
+# ------------------------------------------------------------
+
+- name: Kaniko | Verify kubeconfig exists
+  stat:
+    path: "{{ kubeconfig_path }}"
+  register: kaniko_kubeconfig_file
+  become: false
+
+- name: Kaniko | Fail if kubeconfig does not exist
+  fail:
+    msg: "Le kubeconfig {{ kubeconfig_path }} est introuvable."
+  when: not kaniko_kubeconfig_file.stat.exists
+
+- name: Kaniko | Verify Kubernetes access
+  command: kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+
+# ------------------------------------------------------------
+# 2. Préparation NFS sur tools
+# ------------------------------------------------------------
+
+- name: Kaniko | Ensure NFS root directory exists
+  file:
+    path: "{{ kaniko_nfs_root }}"
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0777"
+  become: true
+
+- name: Kaniko | Ensure frontend NFS directory exists
+  file:
+    path: "{{ kaniko_frontend_nfs_path }}"
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0777"
+  become: true
+
+- name: Kaniko | Ensure backend NFS directory exists
+  file:
+    path: "{{ kaniko_backend_nfs_path }}"
+    state: directory
+    owner: vagrant
+    group: vagrant
+    mode: "0777"
+  become: true
+
+- name: Kaniko | Ensure frontend NFS export exists
+  lineinfile:
+    path: /etc/exports
+    line: "{{ kaniko_frontend_nfs_path }} 10.10.0.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)"
+    state: present
+    create: yes
+  become: true
+
+- name: Kaniko | Ensure backend NFS export exists
+  lineinfile:
+    path: /etc/exports
+    line: "{{ kaniko_backend_nfs_path }} 10.10.0.0/24(rw,sync,no_subtree_check,no_root_squash,insecure)"
+    state: present
+    create: yes
+  become: true
+
+- name: Kaniko | Reload NFS exports
+  command: exportfs -ra
+  become: true
+  changed_when: false
+
+- name: Kaniko | Restart NFS server
+  systemd:
+    name: nfs-kernel-server
+    state: restarted
+    enabled: true
+  become: true
+
+
+# ------------------------------------------------------------
+# 3. Copier les contextes frontend/backend vers NFS
+# ------------------------------------------------------------
+
+- name: Kaniko | Synchronize frontend build context to NFS
+  synchronize:
+    src: "{{ kaniko_frontend_context_dir }}/"
+    dest: "{{ kaniko_frontend_nfs_path }}/"
+    delete: yes
+    recursive: yes
+  delegate_to: localhost
+  become: false
+
+- name: Kaniko | Synchronize backend build context to NFS
+  synchronize:
+    src: "{{ kaniko_backend_context_dir }}/"
+    dest: "{{ kaniko_backend_nfs_path }}/"
+    delete: yes
+    recursive: yes
+  delegate_to: localhost
+  become: false
+
+
+# ------------------------------------------------------------
+# 4. Créer le namespace cicd
+# ------------------------------------------------------------
+
+- name: Kaniko | Ensure cicd namespace exists
+  command: kubectl create namespace {{ kaniko_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: kaniko_namespace_create
+  failed_when: false
+  changed_when: "'created' in kaniko_namespace_create.stdout"
+  become: false
+
+
+# ------------------------------------------------------------
+# 5. Créer le secret Docker pour Nexus
+# ------------------------------------------------------------
+
+- name: Kaniko | Delete old Nexus registry secret if exists
+  command: kubectl delete secret {{ kaniko_registry_secret_name }} -n {{ kaniko_namespace }} --ignore-not-found
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Kaniko | Create Nexus Docker registry secret
+  command: >
+    kubectl create secret docker-registry {{ kaniko_registry_secret_name }}
+    --docker-server={{ kaniko_registry }}
+    --docker-username={{ kaniko_registry_user }}
+    --docker-password={{ kaniko_registry_password }}
+    --docker-email={{ kaniko_registry_email }}
+    -n {{ kaniko_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  no_log: true
+  become: false
+
+
+# ------------------------------------------------------------
+# 6. Créer le secret CA Nexus
+# ------------------------------------------------------------
+
+- name: Kaniko | Verify Nexus CA file exists
+  stat:
+    path: "{{ kaniko_nexus_ca_src }}"
+  register: kaniko_ca_file
+  become: true
+
+- name: Kaniko | Fail if Nexus CA file does not exist
+  fail:
+    msg: "Le certificat CA Nexus est introuvable : {{ kaniko_nexus_ca_src }}"
+  when: not kaniko_ca_file.stat.exists
+
+- name: Kaniko | Delete old Nexus CA secret if exists
+  command: kubectl delete secret {{ kaniko_ca_secret_name }} -n {{ kaniko_namespace }} --ignore-not-found
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Kaniko | Create Nexus CA secret
+  command: >
+    kubectl create secret generic {{ kaniko_ca_secret_name }}
+    --from-file=ca.crt={{ kaniko_nexus_ca_src }}
+    -n {{ kaniko_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  become: true
+
+
+# ------------------------------------------------------------
+# 7. Appliquer RBAC Kaniko
+# ------------------------------------------------------------
+
+- name: Kaniko | Render RBAC manifest
+  template:
+    src: kaniko-rbac.yml.j2
+    dest: /tmp/kaniko-rbac.yml
+    mode: "0644"
+  become: false
+
+- name: Kaniko | Apply RBAC
+  command: kubectl apply -f /tmp/kaniko-rbac.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: true
+  become: false
+
+
+# ------------------------------------------------------------
+# 8. Appliquer PV/PVC frontend et backend
+# ------------------------------------------------------------
+
+- name: Kaniko | Render frontend storage manifest
+  template:
+    src: kaniko-frontend-storage.yml.j2
+    dest: /tmp/kaniko-frontend-storage.yml
+    mode: "0644"
+  become: false
+
+- name: Kaniko | Apply frontend storage manifest
+  command: kubectl apply -f /tmp/kaniko-frontend-storage.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: true
+  become: false
+
+- name: Kaniko | Render backend storage manifest
+  template:
+    src: kaniko-backend-storage.yml.j2
+    dest: /tmp/kaniko-backend-storage.yml
+    mode: "0644"
+  become: false
+
+- name: Kaniko | Apply backend storage manifest
+  command: kubectl apply -f /tmp/kaniko-backend-storage.yml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: true
+  become: false
+
+
+# ------------------------------------------------------------
+# 9. Générer les Jobs Kaniko sans les lancer automatiquement
+# ------------------------------------------------------------
+
+- name: Kaniko | Render frontend Kaniko Job manifest
+  template:
+    src: kaniko-frontend-job.yml.j2
+    dest: /tmp/kaniko-frontend-job.yml
+    mode: "0644"
+  become: false
+
+- name: Kaniko | Render backend Kaniko Job manifest
+  template:
+    src: kaniko-backend-job.yml.j2
+    dest: /tmp/kaniko-backend-job.yml
+    mode: "0644"
+  become: false
+
+
+# ------------------------------------------------------------
+# 10. Vérifications finales
+# ------------------------------------------------------------
+
+- name: Kaniko | Verify secrets
+  command: kubectl get secret -n {{ kaniko_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Kaniko | Verify PV
+  command: kubectl get pv
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Kaniko | Verify PVC
+  command: kubectl get pvc -n {{ kaniko_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  changed_when: false
+  become: false
+
+- name: Kaniko | Show generated job files
+  debug:
+    msg:
+      - "Frontend Job: /tmp/kaniko-frontend-job.yml"
+      - "Backend Job: /tmp/kaniko-backend-job.yml"
+      - "Pour tester frontend: kubectl delete job kaniko-frontend-build -n cicd --ignore-not-found && kubectl apply -f /tmp/kaniko-frontend-job.yml"
+      - "Pour tester backend: kubectl delete job kaniko-backend-build -n cicd --ignore-not-found && kubectl apply -f /tmp/kaniko-backend-job.yml"

@@ -19,6 +19,7 @@
     docker run -d
     --name {{ gitea_container_name }}
     --restart unless-stopped
+    --add-host jenkins.local:10.10.0.22
     -p {{ gitea_http_port }}:3000
     -p {{ gitea_ssh_port }}:22
     -v {{ gitea_data_dir }}:/data

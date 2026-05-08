@@ -125,11 +125,7 @@
   become: true
   roles:
     - app_ingress
-# ============================================================
-# 19. Installer Gitea sur tools
-#    Gitea : http://10.10.0.10:3000
-#    Admin : salhi
-# ============================================================
+
 - name: Installer Gitea
   hosts: tools
   become: true
@@ -141,6 +137,21 @@
   become: true
   roles:
     - jenkins
+
+- name: Finaliser la configuration CI/CD Gitea Jenkins
+  hosts: tools
+  become: true
+  roles:
+    - role: cicd_finalize
+  tags: cicd_finalize
+
+- name: Configure Gitea webhooks for Jenkins pipelines
+  hosts: tools
+  become: false
+  roles:
+    - role: gitea_webhook
+  tags: gitea_webhook
+
 
 - name: Prepare Helm client on tools
   hosts: tools
@@ -163,9 +174,58 @@
     - role: grafana
       tags: grafana
 
-- name: Configure Gitea webhooks for Jenkins pipelines
+- name: Install SonarQube on tools
+  hosts: tools
+  become: true
+  roles:
+    - role: sonarqube
+      tags: sonarqube
+
+- name: Installer Loki et Promtail dans Kubernetes
+  hosts: tools
+  become: true
+  roles:
+    - role: loki
+      tags: loki
+
+- name: Activer les audit logs Kubernetes
+  hosts: masters
+  become: true
+  roles:
+    - role: k8s_audit_logs
+      tags: k8s_audit_logs
+
+- name: Préparer Kaniko pour les builds Kubernetes
+  hosts: tools
+  become: true
+  roles:
+    - role: kaniko
+      tags: kaniko
+
+- name: Create Jenkins seed job and automatic pipelines
+  hosts: tools
+  become: true
+  roles:
+    - role: jenkins_seed_job
+      tags: jenkins_seed_job
+
+- name: Install Cosign on tools
+  hosts: tools
+  become: true
+  roles:
+    - role: cosign
+      tags: cosign
+
+- name: Configure application ServiceAccounts
+  hosts: master1
+  become: true
+  roles:
+    - role: app_serviceaccounts
+      tags: app_serviceaccounts
+
+- name: Install and configure Kyverno policies
   hosts: tools
   become: false
   roles:
-    - role: gitea_webhook
-  tags: gitea_webhook
+    - role: kyverno
+      tags: kyverno

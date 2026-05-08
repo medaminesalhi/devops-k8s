@@ -1,0 +1,92 @@
+---
+- name: App ServiceAccounts | Apply dedicated ServiceAccounts
+  command: kubectl apply -f -
+  args:
+    stdin: "{{ lookup('template', role_path ~ '/templates/serviceaccounts.yml.j2') }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: App ServiceAccounts | Patch backend deployment ServiceAccount
+  command: >
+    kubectl patch deployment {{ backend_deployment_name }}
+    -n {{ app_serviceaccounts_namespace }}
+    --type='merge'
+    -p '{"spec":{"template":{"spec":{"serviceAccountName":"{{ backend_serviceaccount_name }}","automountServiceAccountToken":false}}}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: App ServiceAccounts | Patch frontend deployment ServiceAccount
+  command: >
+    kubectl patch deployment {{ frontend_deployment_name }}
+    -n {{ app_serviceaccounts_namespace }}
+    --type='merge'
+    -p '{"spec":{"template":{"spec":{"serviceAccountName":"{{ frontend_serviceaccount_name }}","automountServiceAccountToken":false}}}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: App ServiceAccounts | Patch mysql deployment ServiceAccount
+  command: >
+    kubectl patch deployment {{ mysql_deployment_name }}
+    -n {{ app_serviceaccounts_namespace }}
+    --type='merge'
+    -p '{"spec":{"template":{"spec":{"serviceAccountName":"{{ mysql_serviceaccount_name }}","automountServiceAccountToken":false}}}}'
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: true
+
+- name: App ServiceAccounts | Wait for backend rollout
+  command: kubectl rollout status deployment/{{ backend_deployment_name }} -n {{ app_serviceaccounts_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: App ServiceAccounts | Wait for frontend rollout
+  command: kubectl rollout status deployment/{{ frontend_deployment_name }} -n {{ app_serviceaccounts_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: App ServiceAccounts | Wait for mysql rollout
+  command: kubectl rollout status deployment/{{ mysql_deployment_name }} -n {{ app_serviceaccounts_namespace }} --timeout=180s
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: App ServiceAccounts | Show deployment ServiceAccounts
+  command: >
+    kubectl get deployment {{ item }}
+    -n {{ app_serviceaccounts_namespace }}
+    -o jsonpath='{.spec.template.spec.serviceAccountName}{"\n"}'
+  loop:
+    - "{{ backend_deployment_name }}"
+    - "{{ frontend_deployment_name }}"
+    - "{{ mysql_deployment_name }}"
+  register: app_sa_check
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: App ServiceAccounts | Print deployment ServiceAccounts
+  debug:
+    msg: "{{ app_sa_check.results | map(attribute='stdout') | list }}"
+
+- name: App ServiceAccounts | Show automountServiceAccountToken values
+  command: >
+    kubectl get deployment {{ item }}
+    -n {{ app_serviceaccounts_namespace }}
+    -o jsonpath='{.spec.template.spec.automountServiceAccountToken}{"\n"}'
+  loop:
+    - "{{ backend_deployment_name }}"
+    - "{{ frontend_deployment_name }}"
+    - "{{ mysql_deployment_name }}"
+  register: app_automount_check
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: App ServiceAccounts | Print automountServiceAccountToken values
+  debug:
+    msg: "{{ app_automount_check.results | map(attribute='stdout') | list }}"

@@ -1,0 +1,309 @@
+pipeline {
+    agent any
+
+    environment {
+        TOOLS_HOST = "10.10.0.10"
+        REGISTRY = "10.10.0.10:8443"
+
+        FRONTEND_DIR = "/home/vagrant/frontend"
+
+        FRONTEND_DEPLOYMENT = "frontend"
+        FRONTEND_CONTAINER = "frontend"
+
+        K8S_NAMESPACE = "project"
+
+        INGRESS_NODE = "10.10.0.22"
+        INGRESS_PORT = "32254"
+        APP_HOST = "app.local"
+
+        FRONTEND_IMAGE_NAME = "frontend-students-app"
+    }
+
+    stages {
+
+        stage('1. Prepare variables') {
+            steps {
+                script {
+                    env.IMAGE_TAG = "${env.BUILD_NUMBER}"
+                    env.FRONTEND_IMAGE = "${env.REGISTRY}/${env.FRONTEND_IMAGE_NAME}:${env.IMAGE_TAG}"
+                }
+
+                sh '''
+                echo "IMAGE_TAG=${IMAGE_TAG}"
+                echo "FRONTEND_IMAGE=${FRONTEND_IMAGE}"
+                '''
+            }
+        }
+
+        stage('2. Test SSH to tools') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      echo 'SSH connection to tools OK'
+                      hostname
+                      whoami
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('3. Pull frontend code') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      cd ${FRONTEND_DIR}
+                      git pull
+                      git log --oneline -1
+                      ls -la
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('4. SonarQube scan frontend source') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    ),
+                    string(
+                        credentialsId: 'sonarqube-token',
+                        variable: 'SONAR_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      cd ${FRONTEND_DIR}
+
+                      docker run --rm \
+                        -v ${FRONTEND_DIR}:/usr/src \
+                        sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=frontend-students-app \
+                        -Dsonar.projectName=frontend-students-app \
+                        -Dsonar.sources=. \
+                        -Dsonar.host.url=http://10.10.0.10:9000 \
+                        -Dsonar.token='$SONAR_TOKEN'
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('5. Trivy scan frontend source') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      cd ${FRONTEND_DIR}
+                      trivy fs --scanners vuln,secret,misconfig --exit-code 1 .
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('6. Build frontend image') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      cd ${FRONTEND_DIR}
+                      docker build --no-cache -t ${FRONTEND_IMAGE} .
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('7. Trivy scan frontend image') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      trivy image --severity HIGH,CRITICAL --exit-code 1 --ignore-unfixed ${FRONTEND_IMAGE}
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('8. Docker login to Nexus') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    ),
+                    usernamePassword(
+                        credentialsId: 'nexus-registry-credentials',
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      echo '$NEXUS_PASSWORD' | docker login ${REGISTRY} -u '$NEXUS_USER' --password-stdin
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('9. Push frontend image') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      docker push ${FRONTEND_IMAGE}
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('10. Deploy frontend to Kubernetes') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      kubectl set image deployment/${FRONTEND_DEPLOYMENT} ${FRONTEND_CONTAINER}=${FRONTEND_IMAGE} -n ${K8S_NAMESPACE}
+                      kubectl rollout status deployment/${FRONTEND_DEPLOYMENT} -n ${K8S_NAMESPACE} --timeout=180s
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('11. Verify frontend deployment image') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      kubectl get pods -n ${K8S_NAMESPACE} -o wide
+                      echo
+                      kubectl get deployment ${FRONTEND_DEPLOYMENT} -n ${K8S_NAMESPACE} -o jsonpath='{.spec.template.spec.containers[0].image}'
+                      echo
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('12. Test frontend through Ingress') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      curl -f -H 'Host: ${APP_HOST}' http://${INGRESS_NODE}:${INGRESS_PORT}/ | head -30
+                      echo
+                    "
+                    '''
+                }
+            }
+        }
+
+        stage('13. Verify frontend content inside pod') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'tools-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                    ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "$SSH_USER@$TOOLS_HOST" "
+                      set -e
+                      POD=$(kubectl get pod -n ${K8S_NAMESPACE} -l app=frontend -o jsonpath='{.items[0].metadata.name}')
+                      echo 'Frontend pod: '$POD
+                      kubectl exec -n ${K8S_NAMESPACE} $POD -- grep '<h1>' /usr/share/nginx/html/index.html || true
+                    "
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Frontend pipeline succeeded."
+            echo "Frontend image: ${FRONTEND_IMAGE}"
+            echo "Application: http://app.local:32254"
+        }
+
+        failure {
+            echo "Frontend pipeline failed. Check Jenkins console output."
+        }
+    }
+}

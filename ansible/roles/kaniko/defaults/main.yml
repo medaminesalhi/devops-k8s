@@ -1,0 +1,55 @@
+---
+# Namespace CI/CD
+kaniko_namespace: cicd
+
+# Nexus Registry
+kaniko_registry: "10.10.0.10:8443"
+kaniko_registry_secret_name: "nexus-registry-secret"
+kaniko_ca_secret_name: "nexus-ca-cert"
+
+# Credentials Nexus
+# Ces valeurs doivent venir idéalement de Ansible Vault
+kaniko_registry_user: "{{ vault_registry_user | default('admin') }}"
+kaniko_registry_password: "{{ vault_registry_password | default('admin123') }}"
+kaniko_registry_email: "admin@example.com"
+
+# Certificat CA Nexus sur tools
+kaniko_nexus_ca_src: "/etc/docker/certs.d/10.10.0.10:8443/ca.crt"
+
+# ServiceAccount Kaniko
+kaniko_service_account: "kaniko-builder"
+kaniko_role_name: "kaniko-job-manager"
+kaniko_rolebinding_name: "kaniko-job-manager-binding"
+
+# Images
+kaniko_executor_image: "gcr.io/kaniko-project/executor:latest"
+
+# Dossiers de contexte de build sur tools
+kaniko_frontend_context_dir: "/home/vagrant/frontend"
+kaniko_backend_context_dir: "/home/vagrant/backend"
+
+# Dossiers NFS partagés pour donner le code à Kaniko
+kaniko_nfs_root: "/srv/nfs/kaniko"
+kaniko_frontend_nfs_path: "/srv/nfs/kaniko/frontend"
+kaniko_backend_nfs_path: "/srv/nfs/kaniko/backend"
+
+# PV/PVC pour Kaniko
+kaniko_frontend_pv_name: "kaniko-frontend-pv"
+kaniko_frontend_pvc_name: "kaniko-frontend-pvc"
+
+kaniko_backend_pv_name: "kaniko-backend-pv"
+kaniko_backend_pvc_name: "kaniko-backend-pvc"
+
+kaniko_storage_class: "kaniko-nfs"
+kaniko_storage_size: "2Gi"
+kaniko_nfs_server: "10.10.0.10"
+
+# Images de destination
+kaniko_frontend_image_name: "frontend-students-app"
+kaniko_backend_image_name: "backend-students-app"
+
+# Tag par défaut pour test manuel
+kaniko_image_tag: "kaniko-test"
+
+# Kubeconfig utilisé depuis tools
+kubeconfig_path: "/home/vagrant/.kube/config"
